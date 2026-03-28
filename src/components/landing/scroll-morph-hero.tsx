@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, useTransform, useSpring, useMotionValue } from "framer-motion";
 import {
-  SiLinkedin, SiInstagram, SiX, SiFacebook, SiTiktok,
-  SiYoutube, SiPinterest, SiThreads, SiBluesky, SiCanva,
-} from "react-icons/si";
+  FaLinkedinIn, FaInstagram, FaXTwitter, FaFacebook, FaTiktok,
+  FaYoutube, FaPinterestP, FaThreads, FaBluesky,
+} from "react-icons/fa6";
+import { SiCanva } from "react-icons/si";
 import { Image, FileText, Video, Music, Sparkles } from "lucide-react";
 
 type AnimationPhase = "scatter" | "line" | "circle" | "grid";
@@ -16,20 +17,20 @@ const DARK = "#0a0a0f";
 const CARD_BG = "#13131A";
 
 const OUTPUT_CARDS = [
-  { label: "LinkedIn", icon: SiLinkedin, color: "#0A66C2" },
-  { label: "Instagram", icon: SiInstagram, color: "#E1306C" },
-  { label: "X", icon: SiX, color: "#FFFFFF" },
-  { label: "Facebook", icon: SiFacebook, color: "#1877F2" },
-  { label: "TikTok", icon: SiTiktok, color: "#FF0050" },
-  { label: "YouTube", icon: SiYoutube, color: "#FF0000" },
-  { label: "Pinterest", icon: SiPinterest, color: "#E60023" },
-  { label: "Threads", icon: SiThreads, color: "#FFFFFF" },
-  { label: "Bluesky", icon: SiBluesky, color: "#0085FF" },
+  { label: "LinkedIn", icon: FaLinkedinIn, color: "#0A66C2" },
+  { label: "Instagram", icon: FaInstagram, color: "#E1306C" },
+  { label: "X", icon: FaXTwitter, color: "#FFFFFF" },
+  { label: "Facebook", icon: FaFacebook, color: "#1877F2" },
+  { label: "TikTok", icon: FaTiktok, color: "#FF0050" },
+  { label: "YouTube", icon: FaYoutube, color: "#FF0000" },
+  { label: "Pinterest", icon: FaPinterestP, color: "#E60023" },
+  { label: "Threads", icon: FaThreads, color: "#FFFFFF" },
+  { label: "Bluesky", icon: FaBluesky, color: "#0085FF" },
   { label: "PIL Visuals", icon: Image, color: GOLD },
   { label: "Canva", icon: SiCanva, color: "#00C4CC" },
   { label: "Gamma Slides", icon: FileText, color: "#FF6B35" },
   { label: "5 Shorts", icon: Video, color: GOLD_BRIGHT },
-  { label: "YouTube Video", icon: SiYoutube, color: "#FF0000" },
+  { label: "YouTube Video", icon: FaYoutube, color: "#FF0000" },
   { label: "AI Scenes", icon: Sparkles, color: GOLD },
   { label: "Audio Extract", icon: Music, color: "#1DB954" },
 ];
