@@ -66,23 +66,14 @@ const GlowCard: React.FC<GlowCardProps> = ({
       '--spread': spread,
       '--radius': '16',
       '--border': '2',
-      '--backdrop': 'hsl(0 0% 60% / 0.06)',
-      '--backup-border': 'var(--backdrop)',
+      '--backdrop': 'transparent',
+      '--backup-border': 'hsl(0 0% 60% / 0.06)',
       '--size': '200',
       '--outer': '1',
       '--border-size': 'calc(var(--border, 2) * 1px)',
       '--spotlight-size': 'calc(var(--size, 150) * 1px)',
       '--hue': 'calc(var(--base) + (var(--xp, 0) * var(--spread, 0)))',
-      backgroundImage: `radial-gradient(
-        var(--spotlight-size) var(--spotlight-size) at
-        calc(var(--x, 0) * 1px)
-        calc(var(--y, 0) * 1px),
-        hsl(var(--hue, 210) calc(var(--saturation, 100) * 1%) calc(var(--lightness, 70) * 1%) / var(--bg-spot-opacity, 0.1)), transparent
-      )`,
-      backgroundColor: 'var(--backdrop, transparent)',
-      backgroundSize: 'calc(100% + (2 * var(--border-size))) calc(100% + (2 * var(--border-size)))',
-      backgroundPosition: '50% 50%',
-      backgroundAttachment: 'fixed',
+      background: 'transparent',
       border: 'var(--border-size) solid var(--backup-border)',
       position: 'relative',
       touchAction: 'none',
@@ -135,17 +126,25 @@ const GlowCard: React.FC<GlowCardProps> = ({
       );
     }
 
-    [data-glow] [data-glow] {
+    [data-glow] > [data-glow] {
       position: absolute;
-      inset: 0;
+      inset: calc(var(--border-size) * -8);
       will-change: filter;
       opacity: var(--outer, 1);
       border-radius: calc(var(--radius) * 1px);
-      border-width: calc(var(--border-size) * 20);
       filter: blur(calc(var(--border-size) * 10));
       background: none;
       pointer-events: none;
       border: none;
+      clip-path: polygon(
+        -20% -20%, 120% -20%, 120% 120%, -20% 120%,
+        -20% -20%,
+        calc(var(--border-size) * 8) calc(var(--border-size) * 8),
+        calc(var(--border-size) * 8) calc(100% - var(--border-size) * 8),
+        calc(100% - var(--border-size) * 8) calc(100% - var(--border-size) * 8),
+        calc(100% - var(--border-size) * 8) calc(var(--border-size) * 8),
+        calc(var(--border-size) * 8) calc(var(--border-size) * 8)
+      );
     }
 
     [data-glow] > [data-glow]::before {

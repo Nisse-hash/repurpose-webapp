@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, useTransform, useSpring, useMotionValue } from "framer-motion";
 import {
-  Briefcase, Camera, AtSign, Users, Play, Pin,
-  MessageCircle, Cloud, Video, FileText, Image, Music,
-  Sparkles, Palette,
-} from "lucide-react";
+  SiLinkedin, SiInstagram, SiX, SiFacebook, SiTiktok,
+  SiYoutube, SiPinterest, SiThreads, SiBluesky, SiCanva,
+} from "react-icons/si";
+import { Image, FileText, Video, Music, Sparkles } from "lucide-react";
 
 type AnimationPhase = "scatter" | "line" | "circle" | "grid";
 
@@ -16,28 +16,28 @@ const DARK = "#0a0a0f";
 const CARD_BG = "#13131A";
 
 const OUTPUT_CARDS = [
-  { label: "LinkedIn", icon: Briefcase, color: "#0A66C2" },
-  { label: "Instagram", icon: Camera, color: "#E1306C" },
-  { label: "X / Twitter", icon: AtSign, color: "#1DA1F2" },
-  { label: "Facebook", icon: Users, color: "#1877F2" },
-  { label: "TikTok", icon: Video, color: "#FF0050" },
-  { label: "YouTube", icon: Play, color: "#FF0000" },
-  { label: "Pinterest", icon: Pin, color: "#E60023" },
-  { label: "Threads", icon: MessageCircle, color: "#FFFFFF" },
-  { label: "Bluesky", icon: Cloud, color: "#0085FF" },
+  { label: "LinkedIn", icon: SiLinkedin, color: "#0A66C2" },
+  { label: "Instagram", icon: SiInstagram, color: "#E1306C" },
+  { label: "X", icon: SiX, color: "#FFFFFF" },
+  { label: "Facebook", icon: SiFacebook, color: "#1877F2" },
+  { label: "TikTok", icon: SiTiktok, color: "#FF0050" },
+  { label: "YouTube", icon: SiYoutube, color: "#FF0000" },
+  { label: "Pinterest", icon: SiPinterest, color: "#E60023" },
+  { label: "Threads", icon: SiThreads, color: "#FFFFFF" },
+  { label: "Bluesky", icon: SiBluesky, color: "#0085FF" },
   { label: "PIL Visuals", icon: Image, color: GOLD },
-  { label: "Canva", icon: Palette, color: "#7B2FF2" },
+  { label: "Canva", icon: SiCanva, color: "#00C4CC" },
   { label: "Gamma Slides", icon: FileText, color: "#FF6B35" },
   { label: "5 Shorts", icon: Video, color: GOLD_BRIGHT },
-  { label: "YouTube Video", icon: Play, color: "#FF0000" },
-  { label: "AI Scenes", icon: Image, color: GOLD },
+  { label: "YouTube Video", icon: SiYoutube, color: "#FF0000" },
+  { label: "AI Scenes", icon: Sparkles, color: GOLD },
   { label: "Audio Extract", icon: Music, color: "#1DB954" },
 ];
 
 const CARD_W = 90;
 const CARD_H = 110;
 const TOTAL = OUTPUT_CARDS.length;
-const MAX_SCROLL = 1200;
+const MAX_SCROLL = 500;
 
 const lerp = (a: number, b: number, t: number) => a * (1 - t) + b * t;
 
@@ -98,6 +98,9 @@ export default function ScrollMorphHero() {
   const [phase, setPhase] = useState<AnimationPhase>("scatter");
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const [rotationOffset, setRotationOffset] = useState(0);
+  const rotationRef = useRef(0);
+  const rafRef = useRef<number>(0);
 
   // Container resize
   useEffect(() => {
@@ -162,6 +165,22 @@ export default function ScrollMorphHero() {
     const t1 = setTimeout(() => setPhase("line"), 400);
     const t2 = setTimeout(() => setPhase("circle"), 2000);
     return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  // Gentle circle rotation
+  useEffect(() => {
+    let lastTime = 0;
+    const spin = (time: number) => {
+      if (lastTime) {
+        const dt = time - lastTime;
+        rotationRef.current += dt * 0.02; // ~20 deg/sec, full turn in ~18s
+        setRotationOffset(rotationRef.current);
+      }
+      lastTime = time;
+      rafRef.current = requestAnimationFrame(spin);
+    };
+    rafRef.current = requestAnimationFrame(spin);
+    return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
   // Scatter positions
@@ -271,8 +290,8 @@ export default function ScrollMorphHero() {
             target = { x: i * spacing - totalW / 2, y: 0, rotation: 0, scale: 1, opacity: 1 };
           } else {
             // Circle position
-            const circleRadius = Math.min(containerSize.width, containerSize.height) * 0.42;
-            const circleAngle = (i / TOTAL) * 360;
+            const circleRadius = Math.min(containerSize.width, containerSize.height) * 0.38;
+            const circleAngle = (i / TOTAL) * 360 + rotationOffset * (1 - morphValue);
             const circleRad = (circleAngle * Math.PI) / 180;
             const circlePos = {
               x: Math.cos(circleRad) * circleRadius,

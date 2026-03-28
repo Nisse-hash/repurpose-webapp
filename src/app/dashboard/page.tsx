@@ -2,8 +2,9 @@
 
 import { useState, useCallback } from "react";
 import { UserButton } from "@clerk/nextjs";
-import { Upload, Link, FileText, Zap, ArrowRight } from "lucide-react";
+import { Upload, Link, FileText, Zap } from "lucide-react";
 import { GlowCard } from "@/components/ui/spotlight-card";
+import { ParticleButton } from "@/components/ui/particle-button";
 
 const GOLD = "#C9A84C";
 
@@ -99,24 +100,30 @@ export default function DashboardPage() {
         </p>
 
         {/* Input mode tabs */}
-        <div className="flex gap-1 p-1 rounded-2xl bg-[#13131a] border border-white/5 mb-8">
+        <div className="flex gap-3 mb-8">
           {([
             { key: "url" as InputMode, label: "URL", icon: Link },
             { key: "file" as InputMode, label: "File", icon: Upload },
             { key: "text" as InputMode, label: "Text", icon: FileText },
           ]).map(({ key, label, icon: Icon }) => (
-            <button
+            <GlowCard
               key={key}
-              onClick={() => setMode(key)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                mode === key
-                  ? "bg-white/10 text-white"
-                  : "text-white/40 hover:text-white/60"
-              }`}
+              glowColor={mode === key ? "gold" : "blue"}
+              customSize
+              className="!aspect-auto p-0"
             >
-              <Icon size={16} />
-              {label}
-            </button>
+              <button
+                onClick={() => setMode(key)}
+                className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-2xl text-sm font-medium transition-all ${
+                  mode === key
+                    ? "text-white"
+                    : "text-white/40 hover:text-white/60"
+                }`}
+              >
+                <Icon size={16} />
+                {label}
+              </button>
+            </GlowCard>
           ))}
         </div>
 
@@ -179,29 +186,13 @@ export default function DashboardPage() {
             </div>
           </GlowCard>
 
-          {/* Submit button wrapped in GlowCard */}
-          <div className="mt-4">
-            <GlowCard
-              glowColor={hasInput ? "gold" : "blue"}
-              customSize
-              className="w-full !aspect-auto p-0 overflow-hidden"
-            >
-              <button
-                onClick={handleSubmit}
-                disabled={!hasInput || submitting}
-                className="relative z-10 w-full py-4 text-lg font-bold tracking-wide transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.99]"
-                style={{
-                  background: hasInput
-                    ? `linear-gradient(135deg, ${GOLD}, #F0B429)`
-                    : "transparent",
-                  color: hasInput ? "#0a0a0f" : "#666",
-                }}
-              >
-                {submitting ? "Processing..." : "Repurpose It"}
-                {!submitting && hasInput && <ArrowRight className="inline ml-2" size={20} />}
-              </button>
-            </GlowCard>
-          </div>
+          {/* Submit button: particles assemble into button when input is provided */}
+          <ParticleButton
+            visible={!!hasInput}
+            onClick={handleSubmit}
+            disabled={!hasInput || submitting}
+            label={submitting ? "Processing..." : "Repurpose It  \u2192"}
+          />
         </div>
       </main>
     </div>
