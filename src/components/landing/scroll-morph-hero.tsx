@@ -37,7 +37,7 @@ const OUTPUT_CARDS = [
 const CARD_W = 90;
 const CARD_H = 110;
 const TOTAL = OUTPUT_CARDS.length;
-const MAX_SCROLL = 2400;
+const MAX_SCROLL = 1200;
 
 const lerp = (a: number, b: number, t: number) => a * (1 - t) + b * t;
 
@@ -154,7 +154,7 @@ export default function ScrollMorphHero() {
   }, [virtualScroll]);
 
   // Morph progress: 0 (circle) → 1 (grid)
-  const morphProgress = useTransform(virtualScroll, [0, 1200], [0, 1]);
+  const morphProgress = useTransform(virtualScroll, [0, MAX_SCROLL], [0, 1]);
   const smoothMorph = useSpring(morphProgress, { stiffness: 35, damping: 20 });
 
   // Intro sequence
@@ -205,10 +205,11 @@ export default function ScrollMorphHero() {
           initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
           animate={phase === "circle" ? { opacity: 1, y: 0, filter: "blur(0px)" } : { opacity: 0 }}
           transition={{ duration: 0.8 }}
-          className="text-4xl md:text-6xl font-bold tracking-tight"
+          className="text-2xl md:text-4xl font-bold tracking-tight"
           style={{ fontFamily: "var(--font-heading)" }}
         >
-          <span className="text-white">1 Input.</span>{" "}
+          <span className="text-white">1 Input.</span>
+          <br />
           <span style={{ color: GOLD }}>16 Outputs.</span>
         </motion.h1>
         <motion.p
@@ -270,7 +271,7 @@ export default function ScrollMorphHero() {
             target = { x: i * spacing - totalW / 2, y: 0, rotation: 0, scale: 1, opacity: 1 };
           } else {
             // Circle position
-            const circleRadius = Math.min(containerSize.width, containerSize.height) * 0.32;
+            const circleRadius = Math.min(containerSize.width, containerSize.height) * 0.42;
             const circleAngle = (i / TOTAL) * 360;
             const circleRad = (circleAngle * Math.PI) / 180;
             const circlePos = {

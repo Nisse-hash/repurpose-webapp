@@ -2,7 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { UserButton } from "@clerk/nextjs";
-import { Upload, Link, FileText, Sparkles, ArrowRight } from "lucide-react";
+import { Upload, Link, FileText, Zap, ArrowRight } from "lucide-react";
+import { GlowCard } from "@/components/ui/spotlight-card";
 
 const GOLD = "#C9A84C";
 
@@ -64,12 +65,23 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#0a0a0f]">
       {/* Header */}
       <header className="flex items-center justify-between px-8 py-5 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <Sparkles size={24} color={GOLD} />
-          <span className="text-lg font-bold tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
+        <a href="/" className="flex items-center gap-3 group">
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center"
+            style={{
+              background: `linear-gradient(135deg, ${GOLD}20, ${GOLD}08)`,
+              border: `1.5px solid ${GOLD}30`,
+            }}
+          >
+            <Zap size={18} color={GOLD} />
+          </div>
+          <span
+            className="text-lg font-bold tracking-tight text-white group-hover:text-white/80 transition-colors"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
             Repurpose
           </span>
-        </div>
+        </a>
         <UserButton />
       </header>
 
@@ -108,96 +120,88 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Input area */}
+        {/* Input area wrapped in GlowCard */}
         <div className="w-full max-w-2xl">
-          {mode === "url" && (
-            <div
-              className="rounded-2xl border p-1 transition-all"
-              style={{
-                background: "radial-gradient(circle at 40% 30%, #1e1e2a, #13131a)",
-                borderColor: urlInput ? `${GOLD}40` : "rgba(255,255,255,0.05)",
-                boxShadow: urlInput ? `0 0 20px ${GOLD}10` : "none",
-              }}
-            >
-              <input
-                type="url"
-                placeholder="Paste a URL... (podcast, YouTube, article)"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                className="w-full bg-transparent px-6 py-4 text-white text-lg placeholder:text-white/20 outline-none"
-              />
-            </div>
-          )}
+          <GlowCard
+            glowColor="gold"
+            customSize
+            className="w-full !aspect-auto p-0"
+          >
+            <div className="relative z-10">
+              {mode === "url" && (
+                <input
+                  type="url"
+                  placeholder="Paste a URL... (podcast, YouTube, article)"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  className="w-full bg-transparent px-6 py-5 text-white text-lg placeholder:text-white/20 outline-none"
+                />
+              )}
 
-          {mode === "file" && (
-            <div
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-              className="rounded-2xl border-2 border-dashed p-12 flex flex-col items-center justify-center gap-4 transition-all cursor-pointer"
-              style={{
-                background: dragActive
-                  ? `radial-gradient(circle, ${GOLD}08, #13131a)`
-                  : "radial-gradient(circle at 40% 30%, #1e1e2a, #13131a)",
-                borderColor: dragActive ? `${GOLD}60` : file ? `${GOLD}40` : "rgba(255,255,255,0.1)",
-              }}
-              onClick={() => {
-                const input = document.createElement("input");
-                input.type = "file";
-                input.onchange = (e) => {
-                  const f = (e.target as HTMLInputElement).files?.[0];
-                  if (f) setFile(f);
-                };
-                input.click();
-              }}
-            >
-              <Upload size={32} color={dragActive ? GOLD : "#666"} />
-              {file ? (
-                <p className="text-white font-medium">{file.name}</p>
-              ) : (
-                <>
-                  <p className="text-white/50 text-sm">Drag and drop, or click to browse</p>
-                  <p className="text-white/20 text-xs">Audio, video, PDF, images</p>
-                </>
+              {mode === "file" && (
+                <div
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  className="p-10 flex flex-col items-center justify-center gap-4 cursor-pointer"
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.onchange = (e) => {
+                      const f = (e.target as HTMLInputElement).files?.[0];
+                      if (f) setFile(f);
+                    };
+                    input.click();
+                  }}
+                >
+                  <Upload size={32} color={dragActive ? GOLD : "#666"} />
+                  {file ? (
+                    <p className="text-white font-medium">{file.name}</p>
+                  ) : (
+                    <>
+                      <p className="text-white/50 text-sm">Drag and drop, or click to browse</p>
+                      <p className="text-white/20 text-xs">Audio, video, PDF, images</p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {mode === "text" && (
+                <textarea
+                  placeholder="Paste your text content here..."
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  rows={6}
+                  className="w-full bg-transparent px-6 py-5 text-white placeholder:text-white/20 outline-none resize-none"
+                />
               )}
             </div>
-          )}
+          </GlowCard>
 
-          {mode === "text" && (
-            <div
-              className="rounded-2xl border transition-all"
-              style={{
-                background: "radial-gradient(circle at 40% 30%, #1e1e2a, #13131a)",
-                borderColor: textInput ? `${GOLD}40` : "rgba(255,255,255,0.05)",
-              }}
+          {/* Submit button wrapped in GlowCard */}
+          <div className="mt-4">
+            <GlowCard
+              glowColor={hasInput ? "gold" : "blue"}
+              customSize
+              className="w-full !aspect-auto p-0 overflow-hidden"
             >
-              <textarea
-                placeholder="Paste your text content here..."
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                rows={6}
-                className="w-full bg-transparent px-6 py-4 text-white placeholder:text-white/20 outline-none resize-none"
-              />
-            </div>
-          )}
-
-          {/* Submit button */}
-          <button
-            onClick={handleSubmit}
-            disabled={!hasInput || submitting}
-            className="w-full mt-6 py-4 rounded-2xl text-lg font-bold tracking-wide transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
-            style={{
-              background: hasInput
-                ? `linear-gradient(135deg, ${GOLD}, #F0B429)`
-                : "#1e1e2a",
-              color: hasInput ? "#0a0a0f" : "#666",
-              boxShadow: hasInput ? `0 0 30px ${GOLD}30` : "none",
-            }}
-          >
-            {submitting ? "Processing..." : "Repurpose It"}
-            {!submitting && hasInput && <ArrowRight className="inline ml-2" size={20} />}
-          </button>
+              <button
+                onClick={handleSubmit}
+                disabled={!hasInput || submitting}
+                className="relative z-10 w-full py-4 text-lg font-bold tracking-wide transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.99]"
+                style={{
+                  background: hasInput
+                    ? `linear-gradient(135deg, ${GOLD}, #F0B429)`
+                    : "transparent",
+                  color: hasInput ? "#0a0a0f" : "#666",
+                }}
+              >
+                {submitting ? "Processing..." : "Repurpose It"}
+                {!submitting && hasInput && <ArrowRight className="inline ml-2" size={20} />}
+              </button>
+            </GlowCard>
+          </div>
         </div>
       </main>
     </div>
