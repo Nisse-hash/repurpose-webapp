@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
-import { Upload, Link, FileText, Zap } from "lucide-react";
+import { Upload, Link, FileText, Zap, Music, Video, Globe, FileImage } from "lucide-react";
 import { GlowCard } from "@/components/ui/spotlight-card";
 import { ParticleButton } from "@/components/ui/particle-button";
 
@@ -61,6 +61,31 @@ export default function DashboardPage() {
   };
 
   const hasInput = mode === "url" ? urlInput.trim() : mode === "file" ? !!file : textInput.trim();
+
+  // Detect content type from URL
+  const detectedType = (() => {
+    if (mode !== "url" || !urlInput.trim()) return null;
+    const url = urlInput.toLowerCase();
+    if (url.includes("spotify") || url.includes("podcast") || url.includes("anchor.fm")) return { label: "Podcast", icon: Music, color: "#1DB954" };
+    if (url.includes("youtube") || url.includes("youtu.be")) return { label: "YouTube", icon: Video, color: "#FF0000" };
+    if (url.includes("tiktok")) return { label: "TikTok", icon: Video, color: "#FF0050" };
+    if (url.includes(".mp3") || url.includes(".wav") || url.includes(".m4a")) return { label: "Audio", icon: Music, color: "#8B5CF6" };
+    if (url.includes(".mp4") || url.includes(".mov") || url.includes(".webm")) return { label: "Video", icon: Video, color: "#F59E0B" };
+    if (url.includes(".pdf")) return { label: "PDF", icon: FileImage, color: "#EF4444" };
+    if (url.startsWith("http")) return { label: "Article", icon: Globe, color: "#3B82F6" };
+    return null;
+  })();
+
+  // Enter key to submit
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey && hasInput && !submitting) {
+        handleSubmit();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [hasInput, submitting, urlInput, textInput, file, mode]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
@@ -185,6 +210,30 @@ export default function DashboardPage() {
               )}
             </div>
           </GlowCard>
+
+          {/* Detected content type badge */}
+          {detectedType && (
+            <div
+              className="mt-3 flex items-center gap-2 px-4 py-2 rounded-xl w-fit"
+              style={{
+                background: `${detectedType.color}10`,
+                border: `1px solid ${detectedType.color}25`,
+                animation: "fade-up 0.3s ease-out",
+              }}
+            >
+              <detectedType.icon size={14} color={detectedType.color} />
+              <span className="text-xs font-medium" style={{ color: detectedType.color }}>
+                {detectedType.label} detected
+              </span>
+            </div>
+          )}
+
+          {/* Keyboard hint */}
+          {hasInput && (
+            <p className="text-white/15 text-xs mt-2 text-center" style={{ animation: "fade-up 0.4s ease-out" }}>
+              Press <kbd className="px-1.5 py-0.5 rounded bg-white/5 text-white/30 font-mono text-[10px]">Enter</kbd> to submit
+            </p>
+          )}
 
           {/* Submit button: particles assemble into button when input is provided */}
           <ParticleButton

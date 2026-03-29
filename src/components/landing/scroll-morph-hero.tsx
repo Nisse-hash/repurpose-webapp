@@ -216,10 +216,24 @@ export default function ScrollMorphHero() {
       className="relative w-full h-full overflow-hidden"
       style={{ background: `radial-gradient(ellipse at 50% 40%, #12121a, ${DARK})` }}
     >
+      {/* Ambient glow behind center */}
+      <motion.div
+        style={{ opacity: heroOpacity }}
+        className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none"
+      >
+        <div
+          className="w-[300px] h-[300px] rounded-full"
+          style={{
+            background: `radial-gradient(circle, ${GOLD}08 0%, transparent 70%)`,
+            filter: "blur(60px)",
+          }}
+        />
+      </motion.div>
+
       {/* Hero text (fades out on scroll) */}
       <motion.div
         style={{ opacity: heroOpacity }}
-        className="absolute z-0 flex flex-col items-center justify-center text-center pointer-events-none inset-0"
+        className="absolute z-10 flex flex-col items-center justify-center text-center pointer-events-none inset-0"
       >
         <motion.h1
           initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { UserButton } from "@clerk/nextjs";
-import { Sparkles, Check, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
+import { Zap, Check, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 const GOLD = "#C9A84C";
@@ -71,7 +71,15 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
           <Link href="/dashboard" className="text-white/40 hover:text-white transition-colors">
             <ArrowLeft size={20} />
           </Link>
-          <Sparkles size={24} color={GOLD} />
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center"
+            style={{
+              background: `linear-gradient(135deg, ${GOLD}20, ${GOLD}08)`,
+              border: `1.5px solid ${GOLD}30`,
+            }}
+          >
+            <Zap size={18} color={GOLD} />
+          </div>
           <span className="text-lg font-bold tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
             Job Progress
           </span>
