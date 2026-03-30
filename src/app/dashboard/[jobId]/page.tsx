@@ -34,6 +34,7 @@ interface JobStatus {
   completedSteps?: number[];
   posts?: Record<string, string>;
   title?: string;
+  gammaUrl?: string;
   error?: string;
   results?: {
     title?: string;
@@ -280,6 +281,36 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                     return <PostCard key={key} platform={key} text={text} />;
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Gamma carousel */}
+            {job.gammaUrl && (
+              <div className="mt-6">
+                <h3
+                  className="text-sm font-semibold uppercase tracking-wider mb-4"
+                  style={{ color: `${GOLD}90` }}
+                >
+                  Gamma Carousel
+                </h3>
+                <a
+                  href={job.gammaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-5 py-4 rounded-xl transition-all hover:scale-[1.01]"
+                  style={{
+                    background: "#13131a",
+                    border: `1px solid ${GOLD}30`,
+                    boxShadow: `0 0 12px ${GOLD}08`,
+                  }}
+                >
+                  <span className="text-2xl">📊</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Open Gamma Carousel</p>
+                    <p className="text-xs text-white/40">4-slide social carousel, ready to share</p>
+                  </div>
+                  <span className="ml-auto text-white/30">→</span>
+                </a>
               </div>
             )}
 
