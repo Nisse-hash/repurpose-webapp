@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { UserButton } from "@clerk/nextjs";
-import { Zap, Check, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
+import { Zap, Check, Loader2, AlertCircle, ArrowLeft, Copy, ChevronDown, Minus } from "lucide-react";
 import Link from "next/link";
 
 const GOLD = "#C9A84C";
@@ -12,6 +12,18 @@ const STEP_ICONS = [
   "🌄", "🎬", "📱", "🎥", "☁️", "💾", "📧",
 ];
 
+const PLATFORM_LABELS: Record<string, string> = {
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+  x: "X (Twitter)",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  threads: "Threads",
+  bluesky: "Bluesky",
+  youtube: "YouTube Shorts",
+  pinterest: "Pinterest",
+};
+
 interface JobStatus {
   jobId: string;
   status: "queued" | "processing" | "done" | "error";
@@ -19,11 +31,69 @@ interface JobStatus {
   stepNumber: number;
   totalSteps: number;
   progress: number;
+  completedSteps?: number[];
+  posts?: Record<string, string>;
+  title?: string;
   error?: string;
   results?: {
+    title?: string;
     posts?: Record<string, string>;
-    assets?: Array<{ name: string; url: string; type: string }>;
   };
+}
+
+function PostCard({ platform, text }: { platform: string; text: string }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden transition-all"
+      style={{
+        background: "#13131a",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        <span className="text-sm font-semibold text-white/80">
+          {PLATFORM_LABELS[platform] || platform}
+        </span>
+        <ChevronDown
+          size={16}
+          className={`text-white/30 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="px-5 pb-4 relative">
+          <button
+            onClick={handleCopy}
+            className="absolute top-0 right-5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            style={{
+              background: `${GOLD}15`,
+              border: `1px solid ${GOLD}40`,
+              color: GOLD,
+            }}
+          >
+            <Copy size={12} />
+            {copied ? "Copied!" : "Copy"}
+          </button>
+          <p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap pr-20 max-h-64 overflow-y-auto">
+            {text}
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function JobPage({ params }: { params: Promise<{ jobId: string }> }) {
@@ -63,6 +133,10 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
     "Sending notification",
   ];
 
+  // Get posts from metadata (live) or results (final)
+  const posts = job?.posts || job?.results?.posts || null;
+  const title = job?.title || job?.results?.title || "";
+
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       {/* Header */}
@@ -81,7 +155,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
             <Zap size={18} color={GOLD} />
           </div>
           <span className="text-lg font-bold tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
-            Job Progress
+            {title || "Job Progress"}
           </span>
         </div>
         <UserButton />
@@ -122,9 +196,10 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
             <div className="space-y-2">
               {steps.map((stepName, i) => {
                 const stepNum = i + 1;
-                const isDone = job.stepNumber > stepNum || job.status === "done";
+                const completed = job.completedSteps || [];
+                const isDone = completed.includes(stepNum);
                 const isActive = job.stepNumber === stepNum && job.status === "processing";
-                const isPending = job.stepNumber < stepNum && job.status !== "done";
+                const isSkipped = job.status === "done" && !isDone;
 
                 return (
                   <div
@@ -138,6 +213,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                         : "transparent",
                       border: isActive ? `1px solid ${GOLD}20` : "1px solid transparent",
                       boxShadow: isActive ? `0 0 20px ${GOLD}08` : "none",
+                      opacity: isSkipped ? 0.3 : 1,
                     }}
                   >
                     {/* Step indicator */}
@@ -156,6 +232,8 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                         <Check size={14} color={GOLD} />
                       ) : isActive ? (
                         <Loader2 size={14} className="animate-spin" color={GOLD} />
+                      ) : isSkipped ? (
+                        <Minus size={14} className="text-white/15" />
                       ) : (
                         <span className="text-xs text-white/20">{STEP_ICONS[i]}</span>
                       )}
@@ -164,7 +242,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                     {/* Step name */}
                     <span
                       className={`text-sm font-medium ${
-                        isDone ? "text-white/60" : isActive ? "text-white" : "text-white/20"
+                        isDone ? "text-white/60" : isActive ? "text-white" : isSkipped ? "text-white/15 line-through" : "text-white/20"
                       }`}
                     >
                       {stepName}
@@ -185,6 +263,25 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                 );
               })}
             </div>
+
+            {/* Posts results */}
+            {posts && Object.keys(posts).length > 0 && (
+              <div className="mt-10">
+                <h3
+                  className="text-sm font-semibold uppercase tracking-wider mb-4"
+                  style={{ color: `${GOLD}90` }}
+                >
+                  Social Posts
+                </h3>
+                <div className="space-y-2">
+                  {Object.entries(PLATFORM_LABELS).map(([key, label]) => {
+                    const text = posts[key];
+                    if (!text) return null;
+                    return <PostCard key={key} platform={key} text={text} />;
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Error message */}
             {job.status === "error" && (
@@ -207,7 +304,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                 <div className="text-4xl mb-3">🎉</div>
                 <h3 className="text-xl font-bold text-white mb-2">All done.</h3>
                 <p className="text-white/40 text-sm">
-                  Your content has been repurposed across all platforms.
+                  Your content has been repurposed. Expand each post above to copy it.
                 </p>
               </div>
             )}
