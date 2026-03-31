@@ -368,7 +368,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
       {!job ? (
         <div className="flex flex-1 overflow-hidden">
           {/* Skeleton sidebar */}
-          <aside className="hidden md:flex flex-col border-r p-4 space-y-2" style={{ width: SIDEBAR_W, minWidth: SIDEBAR_W, borderColor: BORDER, background: "rgba(10,10,15,0.5)" }}>
+          <aside className="hidden md:flex flex-col border-r p-4 space-y-2" style={{ flex: "0 0 50%", borderColor: BORDER, background: "rgba(10,10,15,0.5)" }}>
             <div className="h-3 w-16 rounded bg-white/[0.03] animate-pulse mb-3" />
             {Array.from({ length: 13 }).map((_, i) => (
               <div key={i} className="h-6 rounded-md bg-white/[0.02] animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
@@ -390,7 +390,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
           {/* ── LEFT SIDEBAR ──────────────────────────────── */}
           <aside
             className="hidden md:flex flex-col border-r overflow-y-auto"
-            style={{ width: SIDEBAR_W, minWidth: SIDEBAR_W, borderColor: BORDER, background: "rgba(10,10,15,0.5)" }}
+            style={{ flex: "0 0 50%", borderColor: BORDER, background: "rgba(10,10,15,0.5)" }}
           >
             <div className="p-4 flex-1">
               <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/25 mb-3">Pipeline</p>
