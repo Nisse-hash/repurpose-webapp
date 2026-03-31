@@ -47,10 +47,12 @@ function Lightbox({ src, type, onClose }: { src: string; type: "image" | "video"
 }
 
 // Thumbnail wrapper: small preview, click to enlarge
-function MediaThumb({ src, type, label, downloadLabel }: { src: string; type: "image" | "video"; label: string; downloadLabel?: string }) {
+function MediaThumb({ src, type, label, downloadLabel, aspect }: { src: string; type: "image" | "video"; label: string; downloadLabel?: string; aspect?: "16:9" | "9:16" | "4:5" | "1:1" }) {
   const [lightbox, setLightbox] = useState(false);
   const [imgError, setImgError] = useState(false);
   const isZip = src.endsWith(".zip");
+
+  const aspectClass = aspect === "9:16" ? "aspect-[9/16]" : aspect === "4:5" ? "aspect-[4/5]" : aspect === "1:1" ? "aspect-square" : "aspect-video";
 
   return (
     <>
@@ -61,14 +63,14 @@ function MediaThumb({ src, type, label, downloadLabel }: { src: string; type: "i
         onClick={() => !imgError && !isZip && setLightbox(true)}
       >
         {imgError || isZip ? (
-          <div className="w-full h-24 flex flex-col items-center justify-center gap-1 bg-white/[0.02]">
+          <div className={`w-full ${aspectClass} flex flex-col items-center justify-center gap-1 bg-white/[0.02]`}>
             <Image size={16} className="text-white/15" />
             <span className="text-[8px] text-white/20">{isZip ? "ZIP archive" : "Unavailable"}</span>
           </div>
         ) : type === "image" ? (
-          <img src={src} alt={label} className="w-full h-24 object-cover" onError={() => setImgError(true)} />
+          <img src={src} alt={label} className={`w-full ${aspectClass} object-cover`} onError={() => setImgError(true)} />
         ) : (
-          <video className="w-full h-24 object-cover" preload="metadata" muted>
+          <video className={`w-full ${aspectClass} object-cover`} preload="metadata" muted>
             <source src={src} type="video/mp4" />
           </video>
         )}
@@ -273,7 +275,7 @@ function PostCard({
         {imageUrl && !videoUrl ? (
           /* Single image: side by side with text */
           <div className="flex gap-3 pt-2.5">
-            <div className="w-28 flex-shrink-0"><MediaThumb src={imageUrl} type="image" label={meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"} /></div>
+            <div className="w-28 flex-shrink-0"><MediaThumb src={imageUrl} type="image" label={meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"} aspect={meta.mediaType === "carousel" ? "4:5" : "16:9"} /></div>
             <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto flex-1">
               {text}
             </p>
@@ -281,7 +283,7 @@ function PostCard({
         ) : !imageUrl && videoUrl ? (
           /* Single video: side by side with text */
           <div className="flex gap-3 pt-2.5">
-            <div className="w-28 flex-shrink-0"><MediaThumb src={videoUrl} type="video" label={meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"} /></div>
+            <div className="w-28 flex-shrink-0"><MediaThumb src={videoUrl} type="video" label={meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"} aspect={meta.mediaType === "horizontal" ? "16:9" : "9:16"} /></div>
             <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto flex-1">
               {text}
             </p>
@@ -294,8 +296,8 @@ function PostCard({
             </p>
             {(imageUrl || videoUrl) && (
               <div className="mt-2 flex gap-2">
-                {imageUrl && <div className="w-28"><MediaThumb src={imageUrl} type="image" label={meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"} /></div>}
-                {videoUrl && <div className="w-28"><MediaThumb src={videoUrl} type="video" label={meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"} /></div>}
+                {imageUrl && <div className="w-28"><MediaThumb src={imageUrl} type="image" label={meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"} aspect={meta.mediaType === "carousel" ? "4:5" : "16:9"} /></div>}
+                {videoUrl && <div className="w-28"><MediaThumb src={videoUrl} type="video" label={meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"} aspect={meta.mediaType === "horizontal" ? "16:9" : "9:16"} /></div>}
               </div>
             )}
           </>
@@ -516,10 +518,10 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {job.heroImageUrl && job.heroImageUrl.startsWith("http") && (
-                    <div className="flex-shrink-0 w-36"><MediaThumb src={job.heroImageUrl} type="image" label="Hero 16:9" /></div>
+                    <div className="flex-shrink-0 w-36"><MediaThumb src={job.heroImageUrl} type="image" label="Hero 16:9" aspect="16:9" /></div>
                   )}
                   {job.gammaExportUrl && job.gammaExportUrl.startsWith("http") && (
-                    <div className="flex-shrink-0 w-36"><MediaThumb src={job.gammaExportUrl} type="image" label="Carousel 4:5" /></div>
+                    <div className="flex-shrink-0 w-36"><MediaThumb src={job.gammaExportUrl} type="image" label="Carousel 4:5" aspect="4:5" /></div>
                   )}
                   {job.gammaUrl && (
                     <a href={job.gammaUrl} target="_blank" rel="noopener noreferrer"
@@ -701,7 +703,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {job.shortsUrls.map((url, i) => (
-                    <div key={i} className="flex-shrink-0 w-24"><MediaThumb src={url} type="video" label={`Short ${i + 1}`} /></div>
+                    <div key={i} className="flex-shrink-0 w-24"><MediaThumb src={url} type="video" label={`Short ${i + 1}`} aspect="9:16" /></div>
                   ))}
                 </div>
               </div>
@@ -717,7 +719,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   </span>
                   <span className="text-[9px] text-white/20 ml-1">Speaker viz + karaoke subtitles</span>
                 </div>
-                <div className="w-48"><MediaThumb src={job.fullVideoUrl} type="video" label="Full episode, karaoke subs" /></div>
+                <div className="w-48"><MediaThumb src={job.fullVideoUrl} type="video" label="Full episode, karaoke subs" aspect="16:9" /></div>
               </div>
             )}
 
