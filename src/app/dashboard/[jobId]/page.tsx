@@ -49,24 +49,38 @@ function Lightbox({ src, type, onClose }: { src: string; type: "image" | "video"
 // Thumbnail wrapper: small preview, click to enlarge
 function MediaThumb({ src, type, label, downloadLabel }: { src: string; type: "image" | "video"; label: string; downloadLabel?: string }) {
   const [lightbox, setLightbox] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const isZip = src.endsWith(".zip");
+
   return (
     <>
-      <AnimatePresence>{lightbox && <Lightbox src={src} type={type} onClose={() => setLightbox(false)} />}</AnimatePresence>
-      <div className="rounded-lg overflow-hidden border cursor-pointer group relative" style={{ borderColor: BORDER }} onClick={() => setLightbox(true)}>
-        {type === "image" ? (
-          <img src={src} alt={label} className="w-full h-24 object-cover" />
+      <AnimatePresence>{lightbox && !imgError && !isZip && <Lightbox src={src} type={type} onClose={() => setLightbox(false)} />}</AnimatePresence>
+      <div
+        className="rounded-lg overflow-hidden border cursor-pointer group relative"
+        style={{ borderColor: BORDER }}
+        onClick={() => !imgError && !isZip && setLightbox(true)}
+      >
+        {imgError || isZip ? (
+          <div className="w-full h-24 flex flex-col items-center justify-center gap-1 bg-white/[0.02]">
+            <Image size={16} className="text-white/15" />
+            <span className="text-[8px] text-white/20">{isZip ? "ZIP archive" : "Unavailable"}</span>
+          </div>
+        ) : type === "image" ? (
+          <img src={src} alt={label} className="w-full h-24 object-cover" onError={() => setImgError(true)} />
         ) : (
           <video className="w-full h-24 object-cover" preload="metadata" muted>
             <source src={src} type="video/mp4" />
           </video>
         )}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-          <Maximize2 size={16} className="text-white" />
-        </div>
+        {!imgError && !isZip && (
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+            <Maximize2 size={16} className="text-white" />
+          </div>
+        )}
         <div className="flex items-center justify-between px-2 py-1" style={{ background: "#0d0d14" }}>
           <span className="text-[8px] text-white/30">{label}</span>
           <a href={src} download onClick={(e) => e.stopPropagation()} className="text-[8px] font-medium" style={{ color: GOLD }}>
-            <Download size={8} className="inline mr-0.5" />{downloadLabel || (type === "image" ? "PNG" : "MP4")}
+            <Download size={8} className="inline mr-0.5" />{isZip ? "ZIP" : downloadLabel || (type === "image" ? "PNG" : "MP4")}
           </a>
         </div>
       </div>
