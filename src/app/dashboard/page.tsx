@@ -2,13 +2,15 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
-import { Upload, Link, FileText, Zap, Music, Video, Globe, FileImage, Clock, ArrowRight, Check, Loader2 } from "lucide-react";
+import { Upload, Link, FileText, Zap, Music, Video, Globe, FileImage, Clock, ArrowRight, Check, Loader2, AlertCircle, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { GlowCard } from "@/components/ui/spotlight-card";
 import { ParticleButton } from "@/components/ui/particle-button";
 
 const GOLD = "#C9A84C";
 const CARD_BG = "#13131A";
 const BORDER = "rgba(255,255,255,0.06)";
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
 type InputMode = "url" | "file" | "text";
 
@@ -32,6 +34,38 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+// ── Toast component ──────────────────────────────────────
+function Toast({ msg, type, onClose }: { msg: string; type: "error" | "success"; onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg"
+      style={{
+        background: type === "error" ? "rgba(239,68,68,0.12)" : `${GOLD}12`,
+        border: `1px solid ${type === "error" ? "rgba(239,68,68,0.2)" : `${GOLD}20`}`,
+        backdropFilter: "blur(12px)",
+      }}
+    >
+      {type === "error" ? (
+        <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
+      ) : (
+        <Check size={14} color={GOLD} className="flex-shrink-0" />
+      )}
+      <span className={`text-xs font-medium ${type === "error" ? "text-red-300" : "text-white/70"}`}>{msg}</span>
+      <button onClick={onClose} className="ml-1 text-white/20 hover:text-white/40">
+        <X size={12} />
+      </button>
+    </motion.div>
+  );
+}
+
 export default function DashboardPage() {
   const [mode, setMode] = useState<InputMode>("url");
   const [urlInput, setUrlInput] = useState("");
@@ -40,13 +74,16 @@ export default function DashboardPage() {
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [recentJobs, setRecentJobs] = useState<JobSummary[]>([]);
+  const [toast, setToast] = useState<{ msg: string; type: "error" | "success" } | null>(null);
+
+  const showToast = (msg: string, type: "error" | "success" = "error") => setToast({ msg, type });
 
   // Fetch job history
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/jobs`)
       .then(r => r.json())
       .then(d => setRecentJobs(d.jobs || []))
-      .catch(() => {});
+      .catch(() => showToast("Could not load recent jobs"));
   }, []);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -60,13 +97,31 @@ export default function DashboardPage() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files?.[0]) {
-      setFile(e.dataTransfer.files[0]);
+    const f = e.dataTransfer.files?.[0];
+    if (f) {
+      if (f.size > MAX_FILE_SIZE) {
+        showToast(`File too large (${(f.size / 1024 / 1024).toFixed(0)}MB). Max 500MB.`);
+        return;
+      }
+      setFile(f);
       setMode("file");
     }
   }, []);
 
   const handleSubmit = async () => {
+    // Validate input
+    if (mode === "url") {
+      const trimmed = urlInput.trim();
+      if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+        showToast("Enter a valid URL starting with https://");
+        return;
+      }
+    }
+    if (mode === "file" && file && file.size > MAX_FILE_SIZE) {
+      showToast(`File too large (${(file.size / 1024 / 1024).toFixed(0)}MB). Max 500MB.`);
+      return;
+    }
+
     setSubmitting(true);
     const input = mode === "url" ? urlInput : mode === "text" ? textInput : file?.name || "";
 
@@ -81,11 +136,15 @@ export default function DashboardPage() {
         }),
       });
       const data = await res.json();
+      if (data.error) {
+        showToast(data.error);
+        return;
+      }
       if (data.jobId) {
         window.location.href = `/dashboard/${data.jobId}`;
       }
     } catch (err) {
-      console.error("Failed to submit job:", err);
+      showToast("Failed to connect to backend. Is the server running?");
     } finally {
       setSubmitting(false);
     }
@@ -118,6 +177,11 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      </AnimatePresence>
+
       {/* Header */}
       <header className="flex items-center justify-between px-8 py-5 border-b border-white/5">
         <a href="/" className="flex items-center gap-3 group">
@@ -209,20 +273,30 @@ export default function DashboardPage() {
                   onClick={() => {
                     const input = document.createElement("input");
                     input.type = "file";
+                    input.accept = "audio/*,video/*,application/pdf,image/*";
                     input.onchange = (e) => {
                       const f = (e.target as HTMLInputElement).files?.[0];
-                      if (f) setFile(f);
+                      if (f) {
+                        if (f.size > MAX_FILE_SIZE) {
+                          showToast(`File too large (${(f.size / 1024 / 1024).toFixed(0)}MB). Max 500MB.`);
+                          return;
+                        }
+                        setFile(f);
+                      }
                     };
                     input.click();
                   }}
                 >
                   <Upload size={32} color={dragActive ? GOLD : "#666"} />
                   {file ? (
-                    <p className="text-white font-medium">{file.name}</p>
+                    <div className="text-center">
+                      <p className="text-white font-medium">{file.name}</p>
+                      <p className="text-white/30 text-xs mt-1">{(file.size / 1024 / 1024).toFixed(1)}MB</p>
+                    </div>
                   ) : (
                     <>
                       <p className="text-white/50 text-sm">Drag and drop, or click to browse</p>
-                      <p className="text-white/20 text-xs">Audio, video, PDF, images</p>
+                      <p className="text-white/20 text-xs">Audio, video, PDF, images (max 500MB)</p>
                     </>
                   )}
                 </div>
@@ -288,7 +362,6 @@ export default function DashboardPage() {
                   className="flex items-center gap-3 px-4 py-3 rounded-xl group transition-all hover:scale-[1.005]"
                   style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}
                 >
-                  {/* Status indicator */}
                   <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{
                       background: job.status === "done" ? `${GOLD}15` : job.status === "error" ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.03)",
@@ -300,7 +373,6 @@ export default function DashboardPage() {
                       : <Clock size={10} className="text-white/20" />}
                   </div>
 
-                  {/* Job info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-white/70 truncate">
                       {job.title || `Job ${job.jobId.substring(0, 8)}`}
@@ -311,7 +383,6 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Progress */}
                   {job.status === "processing" && (
                     <div className="flex items-center gap-2">
                       <div className="w-16 h-1 rounded-full bg-white/[0.04] overflow-hidden">

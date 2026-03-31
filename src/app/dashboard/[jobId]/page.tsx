@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap, Check, Loader2, AlertCircle, ArrowLeft, Copy, ChevronDown,
   Minus, Download, FileText, Headphones, Sparkles, Play, Video,
-  Clock, Image, Send, CheckCheck, ExternalLink, User2, Briefcase,
+  Clock, Image, Send, CheckCheck, ExternalLink, User2, Briefcase, RefreshCw,
 } from "lucide-react";
 import {
   FaLinkedinIn, FaInstagram, FaXTwitter, FaFacebook, FaTiktok,
@@ -165,12 +165,13 @@ function PostCard({
   const charCount = text.length;
   const isOver = charCount > limit;
 
+  const validUrl = (u?: string) => u && u.startsWith("http") ? u : undefined;
   let imageUrl: string | undefined;
   let videoUrl: string | undefined;
-  if (meta.mediaType === "image") imageUrl = heroImageUrl;
-  else if (meta.mediaType === "carousel") { imageUrl = gammaExportUrl; videoUrl = promoVerticalUrl; }
-  else if (meta.mediaType === "vertical") videoUrl = promoVerticalUrl;
-  else if (meta.mediaType === "horizontal") videoUrl = promoHorizontalUrl;
+  if (meta.mediaType === "image") imageUrl = validUrl(heroImageUrl);
+  else if (meta.mediaType === "carousel") { imageUrl = validUrl(gammaExportUrl); videoUrl = validUrl(promoVerticalUrl); }
+  else if (meta.mediaType === "vertical") videoUrl = validUrl(promoVerticalUrl);
+  else if (meta.mediaType === "horizontal") videoUrl = validUrl(promoHorizontalUrl);
 
   return (
     <motion.div
@@ -277,22 +278,27 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
   const [sceneOpen, setSceneOpen] = useState(false);
   const [allCopied, setAllCopied] = useState(false);
   const startTimeRef = useRef<string>("");
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const pollNow = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/job/${jobId}`);
+      const data = await res.json();
+      if (!startTimeRef.current && data.createdAt) startTimeRef.current = data.createdAt;
+      setJob(data);
+      if ((data.status === "done" || data.status === "error") && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    } catch (err) {
+      console.error("Poll error:", err);
+    }
+  };
 
   useEffect(() => {
-    const poll = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/job/${jobId}`);
-        const data = await res.json();
-        if (!startTimeRef.current && data.createdAt) startTimeRef.current = data.createdAt;
-        setJob(data);
-        if (data.status === "done" || data.status === "error") return;
-      } catch (err) {
-        console.error("Poll error:", err);
-      }
-    };
-    poll();
-    const interval = setInterval(poll, 3000);
-    return () => clearInterval(interval);
+    pollNow();
+    intervalRef.current = setInterval(pollNow, 3000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [jobId]);
 
   const posts = job?.posts || job?.results?.posts || null;
@@ -347,13 +353,34 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
               {startTimeRef.current && <ElapsedTime startTime={startTimeRef.current} done={isDone || job?.status === "error"} />}
             </div>
           </div>
+          {!isDone && job?.status !== "error" && (
+            <button onClick={pollNow} className="ml-2 p-1 rounded-md hover:bg-white/5 transition-colors" title="Refresh">
+              <RefreshCw size={11} className="text-white/20 hover:text-white/40" />
+            </button>
+          )}
         </div>
         <UserButton />
       </header>
 
       {!job ? (
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 size={24} className="animate-spin" color={GOLD} />
+        <div className="flex flex-1 overflow-hidden">
+          {/* Skeleton sidebar */}
+          <aside className="hidden md:flex flex-col border-r p-4 space-y-2" style={{ width: SIDEBAR_W, minWidth: SIDEBAR_W, borderColor: BORDER, background: "rgba(10,10,15,0.5)" }}>
+            <div className="h-3 w-16 rounded bg-white/[0.03] animate-pulse mb-3" />
+            {Array.from({ length: 13 }).map((_, i) => (
+              <div key={i} className="h-6 rounded-md bg-white/[0.02] animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+            ))}
+          </aside>
+          {/* Skeleton content */}
+          <main className="flex-1 p-6 space-y-4">
+            <div className="h-14 rounded-xl bg-white/[0.02] animate-pulse" />
+            <div className="h-10 rounded-xl bg-white/[0.02] animate-pulse" style={{ animationDelay: "100ms" }} />
+            <div className="space-y-2 mt-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-12 rounded-xl bg-white/[0.02] animate-pulse" style={{ animationDelay: `${200 + i * 80}ms` }} />
+              ))}
+            </div>
+          </main>
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
@@ -680,6 +707,24 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                 <div className="text-center mb-4">
                   <p className="text-2xl mb-2">✦</p>
                   <p className="text-sm font-bold text-white/90" style={{ fontFamily: "var(--font-heading)" }}>Content repurposed.</p>
+                  {(() => {
+                    const completed = job.completedSteps || [];
+                    const skipped = STEP_NAMES
+                      .map((name, i) => ({ name, num: i + 1 }))
+                      .filter(s => !completed.includes(s.num));
+                    return (
+                      <div className="mt-1">
+                        <p className="text-[10px] text-white/40">
+                          {completed.length}/{STEP_NAMES.length} steps completed
+                        </p>
+                        {skipped.length > 0 && skipped.length < 6 && (
+                          <p className="text-[9px] text-white/20 mt-0.5">
+                            Skipped: {skipped.map(s => s.name).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Asset summary grid */}
