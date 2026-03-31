@@ -35,8 +35,8 @@ const PLATFORM_META: Record<string, { label: string; icon: any; color: string; m
 const STEP_NAMES = [
   "Extracting content", "Researching people", "Generating social posts",
   "Creating hero image", "Creating Canva visuals", "Creating Gamma slides",
-  "Generating AI scene images", "Animating scenes", "Rendering vertical shorts",
-  "Rendering YouTube video", "Uploading files", "Saving to Airtable", "Sending notification",
+  "Generating AI scene images", "Animating scenes", "Rendering promos + shorts",
+  "Rendering audio shorts", "Rendering full YouTube video", "Saving to Airtable", "Sending notification",
 ];
 
 interface PersonInfo {
@@ -65,6 +65,7 @@ interface JobStatus {
   sceneImageUrls?: string[];
   animatedSceneUrls?: string[];
   shortsUrls?: string[];
+  fullVideoUrl?: string;
   guest?: PersonInfo | null;
   host?: PersonInfo | null;
   srt?: string;
@@ -308,6 +309,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
     ...(job?.sceneImageUrls || []).map(() => 1),
     ...(job?.animatedSceneUrls || []).map(() => 1),
     ...(job?.shortsUrls || []).map(() => 1),
+    job?.fullVideoUrl ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
   const postCount = posts ? Object.values(posts).filter(Boolean).length : 0;
@@ -627,6 +629,30 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Full YouTube Video */}
+            {job.fullVideoUrl && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Video size={12} color="#FF0000" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: "#FF0000" }}>
+                    Full YouTube Video
+                  </span>
+                  <span className="text-[9px] text-white/20 ml-1">Speaker viz + karaoke subtitles</span>
+                </div>
+                <div className="rounded-xl overflow-hidden border" style={{ borderColor: BORDER, background: CARD_BG }}>
+                  <video controls className="w-full aspect-video" preload="metadata" playsInline>
+                    <source src={job.fullVideoUrl} type="video/mp4" />
+                  </video>
+                  <div className="flex items-center justify-between px-4 py-2" style={{ background: "#0d0d14" }}>
+                    <span className="text-[10px] text-white/30">16:9 full episode with speaker aura + word-by-word subtitles</span>
+                    <a href={job.fullVideoUrl} download className="text-[10px] font-medium flex items-center gap-1" style={{ color: GOLD }}>
+                      <Download size={10} />MP4
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
