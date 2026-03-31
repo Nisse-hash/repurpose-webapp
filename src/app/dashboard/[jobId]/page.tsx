@@ -142,21 +142,18 @@ function PostCard({
   platform: string; text: string; index: number;
   heroImageUrl?: string; gammaExportUrl?: string; promoVerticalUrl?: string; promoHorizontalUrl?: string;
 }) {
-  const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const meta = PLATFORM_META[platform];
   if (!meta) return null;
   const Icon = meta.icon;
 
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCopy = () => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
   };
 
-  // Character count and platform limits
   const charLimits: Record<string, number> = {
     x: 280, threads: 500, bluesky: 300, tiktok: 2200,
     linkedin: 3000, instagram: 2200, facebook: 63206, youtube: 5000, pinterest: 500,
@@ -182,7 +179,7 @@ function PostCard({
       style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}
     >
       {/* Header */}
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-3 px-4 py-3 text-left group">
+      <div className="flex items-center gap-3 px-4 py-2.5">
         <div
           className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
           style={{ background: `${meta.color}15`, border: `1px solid ${meta.color}25` }}
@@ -190,81 +187,55 @@ function PostCard({
           <Icon size={12} color={meta.color} />
         </div>
         <span className="text-sm font-semibold text-white/80 flex-1">{meta.label}</span>
-
-        {/* Media indicators */}
-        {(imageUrl || videoUrl) && (
-          <div className="flex items-center gap-1 mr-2">
-            {imageUrl && <div className="w-1.5 h-1.5 rounded-full bg-green-400" title="Image" />}
-            {videoUrl && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" title="Video" />}
-          </div>
-        )}
-
-        {/* Char count */}
-        <span className={`text-[9px] font-mono mr-2 ${isOver ? "text-red-400" : "text-white/15"}`}>
+        <span className={`text-[9px] font-mono mr-1 ${isOver ? "text-red-400" : "text-white/15"}`}>
           {charCount}/{limit}
         </span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors"
+          style={{ background: copied ? "#1DB95415" : `${GOLD}12`, border: `1px solid ${copied ? "#1DB95425" : `${GOLD}20`}`, color: copied ? "#1DB954" : GOLD }}
+        >
+          {copied ? <CheckCheck size={10} /> : <Copy size={10} />}
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
 
-        <ChevronDown size={13} className={`text-white/20 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      {/* Always visible content */}
+      <div className="px-4 pb-3" style={{ borderTop: `1px solid ${BORDER}` }}>
+        <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap pt-2.5 max-h-32 overflow-y-auto">
+          {text}
+        </p>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4" style={{ borderTop: `1px solid ${BORDER}` }}>
-              {/* Post text */}
-              <div className="relative pt-3">
-                <button
-                  onClick={handleCopy}
-                  className="absolute top-3 right-0 flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors"
-                  style={{ background: copied ? "#1DB95415" : `${GOLD}12`, border: `1px solid ${copied ? "#1DB95425" : `${GOLD}20`}`, color: copied ? "#1DB954" : GOLD }}
-                >
-                  {copied ? <CheckCheck size={10} /> : <Copy size={10} />}
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-                <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap pr-20 max-h-48 overflow-y-auto">
-                  {text}
-                </p>
-              </div>
-
-              {/* Media */}
-              {(imageUrl || videoUrl) && (
-                <div className="mt-3 space-y-2">
-                  {imageUrl && (
-                    <div className="rounded-lg overflow-hidden border" style={{ borderColor: BORDER }}>
-                      <img src={imageUrl} alt={`${meta.label} visual`} className="w-full max-h-48 object-cover" />
-                      <div className="flex items-center justify-between px-3 py-1.5" style={{ background: "#0d0d14" }}>
-                        <span className="text-[9px] text-white/30">{meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"}</span>
-                        <a href={imageUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
-                          <Download size={9} className="inline mr-1" />PNG
-                        </a>
-                      </div>
-                    </div>
-                  )}
-                  {videoUrl && (
-                    <div className="rounded-lg overflow-hidden border" style={{ borderColor: BORDER }}>
-                      <video controls className="w-full max-h-48" preload="metadata">
-                        <source src={videoUrl} type="video/mp4" />
-                      </video>
-                      <div className="flex items-center justify-between px-3 py-1.5" style={{ background: "#0d0d14" }}>
-                        <span className="text-[9px] text-white/30">{meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"}</span>
-                        <a href={videoUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
-                          <Download size={9} className="inline mr-1" />MP4
-                        </a>
-                      </div>
-                    </div>
-                  )}
+        {/* Media: always visible */}
+        {(imageUrl || videoUrl) && (
+          <div className="mt-2.5 space-y-2">
+            {imageUrl && (
+              <div className="rounded-lg overflow-hidden border" style={{ borderColor: BORDER }}>
+                <img src={imageUrl} alt={`${meta.label} visual`} className="w-full max-h-44 object-cover" />
+                <div className="flex items-center justify-between px-3 py-1" style={{ background: "#0d0d14" }}>
+                  <span className="text-[9px] text-white/30">{meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"}</span>
+                  <a href={imageUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
+                    <Download size={9} className="inline mr-1" />PNG
+                  </a>
                 </div>
-              )}
-            </div>
-          </motion.div>
+              </div>
+            )}
+            {videoUrl && (
+              <div className="rounded-lg overflow-hidden border" style={{ borderColor: BORDER }}>
+                <video controls className="w-full max-h-44" preload="metadata">
+                  <source src={videoUrl} type="video/mp4" />
+                </video>
+                <div className="flex items-center justify-between px-3 py-1" style={{ background: "#0d0d14" }}>
+                  <span className="text-[9px] text-white/30">{meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"}</span>
+                  <a href={videoUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
+                    <Download size={9} className="inline mr-1" />MP4
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
         )}
-      </AnimatePresence>
+      </div>
     </motion.div>
   );
 }
@@ -467,6 +438,49 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {job.guest?.name && <PersonCard person={job.guest} role="guest" />}
                   {job.host?.name && <PersonCard person={job.host} role="host" />}
+                </div>
+              </div>
+            )}
+
+            {/* Visual Assets Strip: hero + carousel side by side */}
+            {(job.heroImageUrl || job.gammaExportUrl) && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Image size={12} color={GOLD} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>Visuals</span>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {job.heroImageUrl && job.heroImageUrl.startsWith("http") && (
+                    <div className="flex-shrink-0 rounded-lg overflow-hidden border" style={{ borderColor: BORDER, width: "280px" }}>
+                      <img src={job.heroImageUrl} alt="Hero image" className="w-full h-40 object-cover" />
+                      <div className="flex items-center justify-between px-3 py-1" style={{ background: "#0d0d14" }}>
+                        <span className="text-[9px] text-white/30">Hero 16:9</span>
+                        <a href={job.heroImageUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
+                          <Download size={9} className="inline mr-1" />PNG
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {job.gammaExportUrl && job.gammaExportUrl.startsWith("http") && (
+                    <div className="flex-shrink-0 rounded-lg overflow-hidden border" style={{ borderColor: BORDER, width: "220px" }}>
+                      <img src={job.gammaExportUrl} alt="Carousel" className="w-full h-40 object-cover" />
+                      <div className="flex items-center justify-between px-3 py-1" style={{ background: "#0d0d14" }}>
+                        <span className="text-[9px] text-white/30">Carousel 4:5</span>
+                        <a href={job.gammaExportUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
+                          <Download size={9} className="inline mr-1" />PNG
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {job.gammaUrl && (
+                    <a href={job.gammaUrl} target="_blank" rel="noopener noreferrer"
+                      className="flex-shrink-0 w-40 h-40 rounded-lg border flex flex-col items-center justify-center gap-2 hover:bg-white/[0.02] transition-colors"
+                      style={{ borderColor: BORDER }}>
+                      <ExternalLink size={16} className="text-white/20" />
+                      <span className="text-[10px] text-white/30">Open in Gamma</span>
+                      <span className="text-[9px] text-white/15">Edit slides</span>
+                    </a>
+                  )}
                 </div>
               </div>
             )}
