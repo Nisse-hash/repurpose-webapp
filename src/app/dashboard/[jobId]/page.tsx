@@ -64,6 +64,7 @@ interface JobStatus {
   promoHorizontalUrl?: string;
   sceneImageUrls?: string[];
   animatedSceneUrls?: string[];
+  shortsUrls?: string[];
   guest?: PersonInfo | null;
   host?: PersonInfo | null;
   srt?: string;
@@ -306,6 +307,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
     job?.promoHorizontalUrl ? 1 : 0,
     ...(job?.sceneImageUrls || []).map(() => 1),
     ...(job?.animatedSceneUrls || []).map(() => 1),
+    ...(job?.shortsUrls || []).map(() => 1),
   ].reduce((a, b) => a + b, 0);
 
   const postCount = posts ? Object.values(posts).filter(Boolean).length : 0;
@@ -589,6 +591,43 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                     </motion.div>
                   )}
                 </AnimatePresence>
+              </div>
+            )}
+
+            {/* Audio Shorts */}
+            {job.shortsUrls && job.shortsUrls.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Play size={12} color={GOLD} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>
+                    Audio Shorts
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: `${GOLD}12`, color: GOLD }}>
+                    {job.shortsUrls.length}
+                  </span>
+                  <span className="text-[9px] text-white/20 ml-1">15s best moments</span>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                  {job.shortsUrls.map((url, i) => (
+                    <div
+                      key={i}
+                      className="flex-shrink-0 w-40 rounded-xl overflow-hidden border group"
+                      style={{ borderColor: BORDER, background: CARD_BG }}
+                    >
+                      <div className="relative">
+                        <video controls className="w-full aspect-[9/16]" preload="metadata" playsInline>
+                          <source src={url} type="video/mp4" />
+                        </video>
+                      </div>
+                      <div className="flex items-center justify-between px-2.5 py-1.5">
+                        <span className="text-[9px] text-white/30">Short {i + 1}</span>
+                        <a href={url} download className="text-[9px] font-medium" style={{ color: GOLD }}>
+                          <Download size={9} className="inline mr-0.5" />MP4
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
