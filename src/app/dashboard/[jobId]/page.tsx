@@ -204,7 +204,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
   }, [jobId]);
 
   const steps = [
-    "Extracting content", "Detecting content type", "Generating social posts",
+    "Extracting content", "Researching people", "Generating social posts",
     "Creating hero image", "Creating Canva visuals", "Creating Gamma slides",
     "Generating AI scene images", "Animating scenes", "Rendering vertical shorts",
     "Rendering YouTube video", "Uploading files", "Saving to Airtable", "Sending notification",
