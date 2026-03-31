@@ -5,8 +5,7 @@ import { UserButton } from "@clerk/nextjs";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap, Check, Loader2, AlertCircle, ArrowLeft, Copy, ChevronDown,
-  Minus, Download, FileText, Image as ImageIcon, Music, ExternalLink,
-  Headphones, Sparkles,
+  Minus, Download, FileText, Headphones, Sparkles, Play, Video,
 } from "lucide-react";
 import {
   FaLinkedinIn, FaInstagram, FaXTwitter, FaFacebook, FaTiktok,
@@ -18,22 +17,25 @@ const GOLD = "#C9A84C";
 const GOLD_BRIGHT = "#F0B429";
 const CARD_BG = "#13131A";
 const BORDER = "rgba(255,255,255,0.06)";
+const SIDEBAR_W = "280px";
 
-const PLATFORM_META: Record<string, { label: string; icon: any; color: string }> = {
-  linkedin: { label: "LinkedIn", icon: FaLinkedinIn, color: "#0A66C2" },
-  instagram: { label: "Instagram", icon: FaInstagram, color: "#E1306C" },
-  x: { label: "X", icon: FaXTwitter, color: "#FFFFFF" },
-  facebook: { label: "Facebook", icon: FaFacebook, color: "#1877F2" },
-  tiktok: { label: "TikTok", icon: FaTiktok, color: "#FF0050" },
-  threads: { label: "Threads", icon: FaThreads, color: "#FFFFFF" },
-  bluesky: { label: "Bluesky", icon: FaBluesky, color: "#0085FF" },
-  youtube: { label: "YouTube", icon: FaYoutube, color: "#FF0000" },
-  pinterest: { label: "Pinterest", icon: FaPinterestP, color: "#E60023" },
+const PLATFORM_META: Record<string, { label: string; icon: any; color: string; mediaType: "image" | "carousel" | "vertical" | "horizontal" | "none" }> = {
+  linkedin:  { label: "LinkedIn",       icon: FaLinkedinIn, color: "#0A66C2", mediaType: "image" },
+  x:         { label: "X",              icon: FaXTwitter,   color: "#FFFFFF", mediaType: "image" },
+  instagram: { label: "Instagram",      icon: FaInstagram,  color: "#E1306C", mediaType: "carousel" },
+  facebook:  { label: "Facebook",       icon: FaFacebook,   color: "#1877F2", mediaType: "carousel" },
+  tiktok:    { label: "TikTok",         icon: FaTiktok,     color: "#FF0050", mediaType: "vertical" },
+  youtube:   { label: "YouTube",        icon: FaYoutube,    color: "#FF0000", mediaType: "horizontal" },
+  threads:   { label: "Threads",        icon: FaThreads,    color: "#FFFFFF", mediaType: "vertical" },
+  bluesky:   { label: "Bluesky",        icon: FaBluesky,    color: "#0085FF", mediaType: "image" },
+  pinterest: { label: "Pinterest",      icon: FaPinterestP, color: "#E60023", mediaType: "image" },
 };
 
-const STEP_ICONS = [
-  "📥", "🔍", "✍️", "🎨", "🖼️", "📊",
-  "🌄", "🎬", "📱", "🎥", "☁️", "💾", "📧",
+const STEP_NAMES = [
+  "Extracting content", "Researching people", "Generating social posts",
+  "Creating hero image", "Creating Canva visuals", "Creating Gamma slides",
+  "Generating AI scene images", "Animating scenes", "Rendering vertical shorts",
+  "Rendering YouTube video", "Uploading files", "Saving to Airtable", "Sending notification",
 ];
 
 interface JobStatus {
@@ -50,72 +52,21 @@ interface JobStatus {
   gammaExportUrl?: string;
   heroImageUrl?: string;
   audioUrl?: string;
+  promoVerticalUrl?: string;
+  promoHorizontalUrl?: string;
   srt?: string;
   error?: string;
   results?: { title?: string; posts?: Record<string, string> };
 }
 
-// ── Reusable Section Header ────────────────────────────────────────────
+// ── PostCard with attached media ───────────────────────────────────────
 
-function SectionHeader({ icon: Icon, label, count }: { icon: any; label: string; count?: number }) {
-  return (
-    <div className="flex items-center gap-2.5 mb-5">
-      <div
-        className="w-7 h-7 rounded-lg flex items-center justify-center"
-        style={{ background: `${GOLD}12`, border: `1px solid ${GOLD}20` }}
-      >
-        <Icon size={13} color={GOLD} />
-      </div>
-      <h3 className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: `${GOLD}` }}>
-        {label}
-      </h3>
-      {count !== undefined && (
-        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${GOLD}15`, color: GOLD }}>
-          {count}
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ── GlowCard wrapper ───────────────────────────────────────────────────
-
-function GlowCard({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [mouse, setMouse] = useState({ x: 0, y: 0 });
-
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
-      onMouseMove={(e) => {
-        if (!ref.current) return;
-        const r = ref.current.getBoundingClientRect();
-        setMouse({ x: e.clientX - r.left, y: e.clientY - r.top });
-      }}
-      className={`relative rounded-2xl overflow-hidden ${className}`}
-      style={{
-        background: CARD_BG,
-        border: `1px solid ${BORDER}`,
-      }}
-    >
-      {/* Cursor glow */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300"
-        style={{
-          background: `radial-gradient(300px circle at ${mouse.x}px ${mouse.y}px, ${GOLD}08, transparent)`,
-        }}
-      />
-      {children}
-    </motion.div>
-  );
-}
-
-// ── Post Card ──────────────────────────────────────────────────────────
-
-function PostCard({ platform, text, index }: { platform: string; text: string; index: number }) {
+function PostCard({
+  platform, text, heroImageUrl, gammaExportUrl, promoVerticalUrl, promoHorizontalUrl, index,
+}: {
+  platform: string; text: string; index: number;
+  heroImageUrl?: string; gammaExportUrl?: string; promoVerticalUrl?: string; promoHorizontalUrl?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const meta = PLATFORM_META[platform];
@@ -130,25 +81,40 @@ function PostCard({ platform, text, index }: { platform: string; text: string; i
     });
   };
 
+  // Determine which media to show
+  let imageUrl: string | undefined;
+  let videoUrl: string | undefined;
+  if (meta.mediaType === "image") imageUrl = heroImageUrl;
+  else if (meta.mediaType === "carousel") { imageUrl = gammaExportUrl; videoUrl = promoVerticalUrl; }
+  else if (meta.mediaType === "vertical") videoUrl = promoVerticalUrl;
+  else if (meta.mediaType === "horizontal") videoUrl = promoHorizontalUrl;
+
   return (
-    <GlowCard delay={index * 0.04}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left group"
-      >
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.03 }}
+      className="rounded-xl overflow-hidden"
+      style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}
+    >
+      {/* Header */}
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-3 px-4 py-3 text-left group">
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
-          style={{ background: `${meta.color}18`, border: `1px solid ${meta.color}30` }}
+          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: `${meta.color}15`, border: `1px solid ${meta.color}25` }}
         >
-          <Icon size={14} color={meta.color} />
+          <Icon size={12} color={meta.color} />
         </div>
         <span className="text-sm font-semibold text-white/80 flex-1">{meta.label}</span>
-        <span className="text-[10px] text-white/20 mr-2">{text.length} chars</span>
-        <ChevronDown
-          size={14}
-          className={`text-white/20 transition-transform ${open ? "rotate-180" : ""}`}
-        />
+        {(imageUrl || videoUrl) && (
+          <div className="flex items-center gap-1 mr-2">
+            {imageUrl && <div className="w-1.5 h-1.5 rounded-full bg-green-400" title="Image" />}
+            {videoUrl && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" title="Video" />}
+          </div>
+        )}
+        <ChevronDown size={13} className={`text-white/20 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
+
       <AnimatePresence>
         {open && (
           <motion.div
@@ -158,26 +124,56 @@ function PostCard({ platform, text, index }: { platform: string; text: string; i
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5 relative">
-              <div className="absolute top-0 left-5 right-5 h-px" style={{ background: BORDER }} />
-              <div className="pt-4">
+            <div className="px-4 pb-4" style={{ borderTop: `1px solid ${BORDER}` }}>
+              {/* Post text */}
+              <div className="relative pt-3">
                 <button
                   onClick={handleCopy}
-                  className="absolute top-4 right-5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:scale-105"
-                  style={{ background: `${GOLD}12`, border: `1px solid ${GOLD}25`, color: GOLD }}
+                  className="absolute top-3 right-0 flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium"
+                  style={{ background: `${GOLD}12`, border: `1px solid ${GOLD}20`, color: GOLD }}
                 >
-                  <Copy size={11} />
+                  <Copy size={10} />
                   {copied ? "Copied!" : "Copy"}
                 </button>
-                <p className="text-sm text-white/55 leading-relaxed whitespace-pre-wrap pr-24 max-h-72 overflow-y-auto">
+                <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap pr-20 max-h-48 overflow-y-auto">
                   {text}
                 </p>
               </div>
+
+              {/* Media */}
+              {(imageUrl || videoUrl) && (
+                <div className="mt-3 space-y-2">
+                  {imageUrl && (
+                    <div className="rounded-lg overflow-hidden border" style={{ borderColor: BORDER }}>
+                      <img src={imageUrl} alt={`${meta.label} visual`} className="w-full max-h-48 object-cover" />
+                      <div className="flex items-center justify-between px-3 py-1.5" style={{ background: "#0d0d14" }}>
+                        <span className="text-[9px] text-white/30">{meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"}</span>
+                        <a href={imageUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
+                          <Download size={9} className="inline mr-1" />PNG
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {videoUrl && (
+                    <div className="rounded-lg overflow-hidden border" style={{ borderColor: BORDER }}>
+                      <video controls className="w-full max-h-48" preload="metadata">
+                        <source src={videoUrl} type="video/mp4" />
+                      </video>
+                      <div className="flex items-center justify-between px-3 py-1.5" style={{ background: "#0d0d14" }}>
+                        <span className="text-[9px] text-white/30">{meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"}</span>
+                        <a href={videoUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
+                          <Download size={9} className="inline mr-1" />MP4
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </GlowCard>
+    </motion.div>
   );
 }
 
@@ -186,6 +182,7 @@ function PostCard({ platform, text, index }: { platform: string; text: string; i
 export default function JobPage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
   const [job, setJob] = useState<JobStatus | null>(null);
+  const [srtOpen, setSrtOpen] = useState(false);
 
   useEffect(() => {
     const poll = async () => {
@@ -203,88 +200,48 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
     return () => clearInterval(interval);
   }, [jobId]);
 
-  const steps = [
-    "Extracting content", "Researching people", "Generating social posts",
-    "Creating hero image", "Creating Canva visuals", "Creating Gamma slides",
-    "Generating AI scene images", "Animating scenes", "Rendering vertical shorts",
-    "Rendering YouTube video", "Uploading files", "Saving to Airtable", "Sending notification",
-  ];
-
   const posts = job?.posts || job?.results?.posts || null;
   const title = job?.title || job?.results?.title || "";
   const isDone = job?.status === "done";
   const isProcessing = job?.status === "processing";
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
-      {/* Background ambient glow */}
-      {isProcessing && (
-        <div className="fixed inset-0 pointer-events-none z-0">
-          <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full blur-[120px] opacity-[0.04]"
-            style={{ background: GOLD }}
-          />
-        </div>
-      )}
-
+    <div className="min-h-screen bg-[#0a0a0f] flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 flex items-center justify-between px-8 py-4 backdrop-blur-xl" style={{ background: "rgba(10,10,15,0.85)", borderBottom: `1px solid ${BORDER}` }}>
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="text-white/30 hover:text-white transition-colors">
-            <ArrowLeft size={18} />
+      <header className="flex items-center justify-between px-6 py-3 border-b z-50" style={{ borderColor: BORDER, background: "rgba(10,10,15,0.9)", backdropFilter: "blur(12px)" }}>
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="text-white/25 hover:text-white transition-colors">
+            <ArrowLeft size={16} />
           </Link>
-          <div className="w-px h-6 bg-white/10" />
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: `linear-gradient(135deg, ${GOLD}20, ${GOLD}08)`, border: `1px solid ${GOLD}25` }}
-          >
-            <Zap size={15} color={GOLD} />
+          <div className="w-px h-5 bg-white/10" />
+          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: `${GOLD}15`, border: `1px solid ${GOLD}20` }}>
+            <Zap size={13} color={GOLD} />
           </div>
           <div>
-            <p className="text-sm font-bold tracking-tight text-white/90" style={{ fontFamily: "var(--font-heading)" }}>
+            <p className="text-xs font-bold text-white/85 truncate max-w-[300px]" style={{ fontFamily: "var(--font-heading)" }}>
               {title || "Processing..."}
             </p>
-            <p className="text-[10px] text-white/30 font-mono">{jobId.substring(0, 8)}</p>
+            <p className="text-[9px] text-white/25 font-mono">{jobId.substring(0, 8)}</p>
           </div>
         </div>
         <UserButton />
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-10 relative z-10">
-        {!job ? (
-          <div className="flex flex-col items-center justify-center py-32 gap-4">
-            <Loader2 size={28} className="animate-spin" color={GOLD} />
-            <p className="text-xs text-white/30">Loading job...</p>
-          </div>
-        ) : (
-          <>
-            {/* ── Progress Section ──────────────────────────── */}
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
-              {/* Progress bar */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-white/40 font-medium">
-                  {isDone ? "Complete" : job.status === "error" ? "Error" : job.step || "Queued"}
-                </span>
-                <span className="text-xs font-bold tabular-nums" style={{ color: GOLD }}>
-                  {job.progress}%
-                </span>
-              </div>
-              <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden mb-8">
-                <motion.div
-                  className="h-full rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${job.progress}%` }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                  style={{
-                    background: job.status === "error" ? "#ef4444" : `linear-gradient(90deg, ${GOLD}, ${GOLD_BRIGHT})`,
-                    boxShadow: `0 0 20px ${GOLD}30`,
-                  }}
-                />
-              </div>
-
-              {/* Steps grid (compact) */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {steps.map((stepName, i) => {
+      {!job ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 size={24} className="animate-spin" color={GOLD} />
+        </div>
+      ) : (
+        <div className="flex flex-1 overflow-hidden">
+          {/* ── LEFT SIDEBAR ──────────────────────────────── */}
+          <aside
+            className="hidden md:flex flex-col border-r overflow-y-auto"
+            style={{ width: SIDEBAR_W, minWidth: SIDEBAR_W, borderColor: BORDER, background: "rgba(10,10,15,0.5)" }}
+          >
+            <div className="p-4 flex-1">
+              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/25 mb-3">Pipeline</p>
+              <div className="space-y-0.5">
+                {STEP_NAMES.map((stepName, i) => {
                   const stepNum = i + 1;
                   const completed = job.completedSteps || [];
                   const stepDone = completed.includes(stepNum);
@@ -294,207 +251,171 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   return (
                     <div
                       key={i}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px]"
                       style={{
-                        background: isActive ? `${GOLD}08` : stepDone ? `${GOLD}04` : "transparent",
-                        border: isActive ? `1px solid ${GOLD}20` : `1px solid transparent`,
+                        background: isActive ? `${GOLD}08` : "transparent",
+                        border: isActive ? `1px solid ${GOLD}15` : "1px solid transparent",
                         opacity: isSkipped ? 0.2 : 1,
                       }}
                     >
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{
-                          background: stepDone ? `${GOLD}20` : isActive ? `${GOLD}15` : "rgba(255,255,255,0.03)",
-                        }}
+                      <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ background: stepDone ? `${GOLD}20` : isActive ? `${GOLD}12` : "rgba(255,255,255,0.03)" }}
                       >
-                        {stepDone ? <Check size={10} color={GOLD} />
-                          : isActive ? <Loader2 size={10} className="animate-spin" color={GOLD} />
-                          : isSkipped ? <Minus size={10} className="text-white/10" />
-                          : <span className="text-[8px]">{STEP_ICONS[i]}</span>}
+                        {stepDone ? <Check size={8} color={GOLD} />
+                          : isActive ? <Loader2 size={8} className="animate-spin" color={GOLD} />
+                          : <Minus size={8} className="text-white/10" />}
                       </div>
-                      <span className={`text-[11px] font-medium truncate ${
-                        stepDone ? "text-white/50" : isActive ? "text-white/90" : isSkipped ? "text-white/10 line-through" : "text-white/20"
-                      }`}>
+                      <span className={stepDone ? "text-white/50" : isActive ? "text-white/90 font-medium" : isSkipped ? "text-white/10 line-through" : "text-white/20"}>
                         {stepName}
                       </span>
-                      {isActive && (
-                        <div className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ background: GOLD, boxShadow: `0 0 6px ${GOLD}` }}
-                        />
-                      )}
+                      {isActive && <div className="ml-auto w-1 h-1 rounded-full" style={{ background: GOLD, boxShadow: `0 0 4px ${GOLD}` }} />}
                     </div>
                   );
                 })}
               </div>
-            </motion.div>
+            </div>
 
-            {/* ── Media Section (Images + Audio) ───────────── */}
-            {(job.heroImageUrl || job.gammaExportUrl || job.audioUrl) && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="mb-12"
-              >
-                <SectionHeader icon={ImageIcon} label="Media" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Hero Image */}
-                  {job.heroImageUrl && (
-                    <GlowCard delay={0.1}>
-                      <div className="aspect-video overflow-hidden rounded-t-2xl">
-                        <img src={job.heroImageUrl} alt="Hero image" className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex items-center justify-between px-4 py-3">
-                        <div>
-                          <p className="text-xs font-semibold text-white/70">Hero Image</p>
-                          <p className="text-[10px] text-white/30">16:9 for X / LinkedIn</p>
-                        </div>
-                        <a href={job.heroImageUrl} download className="flex items-center gap-1.5 text-[11px] font-medium transition-colors hover:opacity-80" style={{ color: GOLD }}>
-                          <Download size={11} /> PNG
-                        </a>
-                      </div>
-                    </GlowCard>
-                  )}
+            {/* Progress bar at bottom */}
+            <div className="p-4 border-t" style={{ borderColor: BORDER }}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[9px] text-white/30">{isDone ? "Complete" : job.step || "Queued"}</span>
+                <span className="text-[9px] font-bold" style={{ color: GOLD }}>{job.progress}%</span>
+              </div>
+              <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full"
+                  animate={{ width: `${job.progress}%` }}
+                  transition={{ duration: 0.6 }}
+                  style={{ background: `linear-gradient(90deg, ${GOLD}, ${GOLD_BRIGHT})`, boxShadow: `0 0 12px ${GOLD}25` }}
+                />
+              </div>
+            </div>
+          </aside>
 
-                  {/* Gamma Carousel */}
-                  {job.gammaExportUrl && (
-                    <GlowCard delay={0.15}>
-                      <div className="aspect-video overflow-hidden rounded-t-2xl bg-black/20 flex items-center justify-center">
-                        <img src={job.gammaExportUrl} alt="Carousel" className="max-h-full max-w-full object-contain" />
-                      </div>
-                      <div className="flex items-center justify-between px-4 py-3">
-                        <div>
-                          <p className="text-xs font-semibold text-white/70">Carousel</p>
-                          <p className="text-[10px] text-white/30">4 slides, 4:5 format</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {job.gammaUrl && (
-                            <a href={job.gammaUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-white/30 hover:text-white/60 transition-colors">
-                              <ExternalLink size={10} /> Edit
-                            </a>
-                          )}
-                          <a href={job.gammaExportUrl} download className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: GOLD }}>
-                            <Download size={11} /> PNG
-                          </a>
-                        </div>
-                      </div>
-                    </GlowCard>
-                  )}
+          {/* ── RIGHT CONTENT PANEL ───────────────────────── */}
+          <main className="flex-1 overflow-y-auto p-6 space-y-6">
 
-                  {/* Audio Player */}
-                  {job.audioUrl && (
-                    <GlowCard delay={0.2} className="md:col-span-2">
-                      <div className="p-5">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#1DB95418", border: "1px solid #1DB95430" }}>
-                            <Headphones size={18} color="#1DB954" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-white/80">Episode Audio</p>
-                            <p className="text-[10px] text-white/30">Original podcast recording</p>
-                          </div>
-                          <a href={job.audioUrl} download className="ml-auto flex items-center gap-1.5 text-[11px] font-medium" style={{ color: GOLD }}>
-                            <Download size={11} /> MP3
-                          </a>
-                        </div>
-                        <audio controls className="w-full [&::-webkit-media-controls-panel]:bg-[#1a1a24] rounded-lg" style={{ height: 36 }}>
-                          <source src={job.audioUrl} type="audio/mpeg" />
-                        </audio>
-                      </div>
-                    </GlowCard>
-                  )}
+            {/* Mobile: compact progress bar (hidden on desktop) */}
+            <div className="md:hidden mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-white/40">{isDone ? "Complete" : job.step || "Queued"}</span>
+                <span className="text-[10px] font-bold" style={{ color: GOLD }}>{job.progress}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${job.progress}%`, background: `linear-gradient(90deg, ${GOLD}, ${GOLD_BRIGHT})` }} />
+              </div>
+            </div>
+
+            {/* Audio Player */}
+            {job.audioUrl && (
+              <div className="rounded-xl p-3.5 flex items-center gap-3" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#1DB95415", border: "1px solid #1DB95425" }}>
+                  <Headphones size={14} color="#1DB954" />
                 </div>
-              </motion.div>
+                <audio controls className="flex-1 h-8 [&::-webkit-media-controls-panel]:bg-[#1a1a24]">
+                  <source src={job.audioUrl} type="audio/mpeg" />
+                </audio>
+                <a href={job.audioUrl} download className="text-[10px] font-medium flex-shrink-0" style={{ color: GOLD }}>
+                  <Download size={10} className="inline mr-0.5" />MP3
+                </a>
+              </div>
             )}
 
-            {/* ── Social Posts ──────────────────────────────── */}
-            {posts && Object.keys(posts).length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="mb-12"
-              >
-                <SectionHeader icon={Sparkles} label="Social Posts" count={Object.keys(posts).filter(k => posts[k]).length} />
-                <div className="space-y-2">
-                  {Object.entries(PLATFORM_META).map(([key], i) => {
-                    const text = posts[key];
-                    if (!text) return null;
-                    return <PostCard key={key} platform={key} text={text} index={i} />;
-                  })}
-                </div>
-              </motion.div>
-            )}
-
-            {/* ── Transcript ───────────────────────────────── */}
+            {/* Transcript (collapsible) */}
             {job.srt && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="mb-12"
-              >
-                <SectionHeader icon={FileText} label="Transcript" />
-                <GlowCard>
-                  <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <p className="text-xs text-white/50">Timestamped SRT</p>
+              <div className="rounded-xl overflow-hidden" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+                <button onClick={() => setSrtOpen(!srtOpen)} className="w-full flex items-center justify-between px-4 py-2.5 text-left">
+                  <div className="flex items-center gap-2">
+                    <FileText size={12} className="text-white/30" />
+                    <span className="text-[11px] text-white/50">Transcript (SRT)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         const blob = new Blob([job.srt!], { type: "text/srt" });
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `${title || "transcript"}.srt`;
-                        a.click();
+                        a.href = url; a.download = `${title || "transcript"}.srt`; a.click();
                         URL.revokeObjectURL(url);
                       }}
-                      className="flex items-center gap-1.5 text-[11px] font-medium transition-colors hover:opacity-80"
-                      style={{ color: GOLD }}
+                      className="text-[10px] font-medium" style={{ color: GOLD }}
                     >
-                      <Download size={11} /> Download SRT
+                      <Download size={10} className="inline mr-0.5" />SRT
                     </button>
+                    <ChevronDown size={12} className={`text-white/20 transition-transform ${srtOpen ? "rotate-180" : ""}`} />
                   </div>
-                  <pre className="px-5 py-4 text-[11px] text-white/40 leading-relaxed max-h-56 overflow-y-auto whitespace-pre-wrap font-mono">
-                    {job.srt.substring(0, 3000)}{job.srt.length > 3000 ? "\n\n..." : ""}
-                  </pre>
-                </GlowCard>
-              </motion.div>
+                </button>
+                <AnimatePresence>
+                  {srtOpen && (
+                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+                      <pre className="px-4 pb-3 text-[10px] text-white/35 leading-relaxed max-h-40 overflow-y-auto whitespace-pre-wrap font-mono" style={{ borderTop: `1px solid ${BORDER}` }}>
+                        {job.srt.substring(0, 2000)}{job.srt.length > 2000 ? "\n..." : ""}
+                      </pre>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             )}
 
-            {/* ── Error ─────────────────────────────────────── */}
-            {job.status === "error" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-12">
-                <div className="p-5 rounded-2xl bg-red-500/[0.06] border border-red-500/15 flex items-start gap-3">
-                  <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-300/80">{job.error || "An unknown error occurred"}</p>
+            {/* Posts with media */}
+            {posts && Object.keys(posts).length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles size={12} color={GOLD} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>
+                    Social Posts
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: `${GOLD}12`, color: GOLD }}>
+                    {Object.keys(posts).filter(k => posts[k]).length}
+                  </span>
                 </div>
-              </motion.div>
+                <div className="space-y-2">
+                  {Object.keys(PLATFORM_META).map((key, i) => {
+                    const text = posts[key];
+                    if (!text) return null;
+                    return (
+                      <PostCard
+                        key={key}
+                        platform={key}
+                        text={text}
+                        index={i}
+                        heroImageUrl={job.heroImageUrl || undefined}
+                        gammaExportUrl={job.gammaExportUrl || undefined}
+                        promoVerticalUrl={job.promoVerticalUrl || undefined}
+                        promoHorizontalUrl={job.promoHorizontalUrl || undefined}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
-            {/* ── Done Celebration ──────────────────────────── */}
+            {/* Error */}
+            {job.status === "error" && (
+              <div className="p-4 rounded-xl bg-red-500/[0.06] border border-red-500/15 flex items-start gap-2">
+                <AlertCircle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-red-300/80">{job.error || "An unknown error occurred"}</p>
+              </div>
+            )}
+
+            {/* Done */}
             {isDone && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="p-8 rounded-2xl text-center"
-                style={{
-                  background: `radial-gradient(circle at 50% 20%, ${GOLD}06, ${CARD_BG})`,
-                  border: `1px solid ${GOLD}15`,
-                  boxShadow: `0 0 40px ${GOLD}06`,
-                }}
+                transition={{ type: "spring", stiffness: 200 }}
+                className="p-6 rounded-xl text-center"
+                style={{ background: `radial-gradient(circle at 50% 20%, ${GOLD}05, ${CARD_BG})`, border: `1px solid ${GOLD}12` }}
               >
-                <div className="text-4xl mb-3">✦</div>
-                <h3 className="text-lg font-bold text-white mb-1.5" style={{ fontFamily: "var(--font-heading)" }}>
-                  Content repurposed.
-                </h3>
-                <p className="text-xs text-white/35 max-w-sm mx-auto">
-                  Everything is saved to Airtable. Expand each post above to copy it, or download the media assets.
-                </p>
+                <p className="text-2xl mb-2">✦</p>
+                <p className="text-sm font-bold text-white/90" style={{ fontFamily: "var(--font-heading)" }}>Content repurposed.</p>
+                <p className="text-[10px] text-white/30 mt-1">Expand each post to copy text and download media.</p>
               </motion.div>
             )}
-          </>
-        )}
-      </main>
+          </main>
+        </div>
+      )}
     </div>
   );
 }
