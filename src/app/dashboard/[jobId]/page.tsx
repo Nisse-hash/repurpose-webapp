@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap, Check, Loader2, AlertCircle, ArrowLeft, Copy, ChevronDown,
   Minus, Download, FileText, Headphones, Sparkles, Play, Video,
+  Clock, Image, Send, CheckCheck, ExternalLink, User2, Briefcase,
 } from "lucide-react";
 import {
   FaLinkedinIn, FaInstagram, FaXTwitter, FaFacebook, FaTiktok,
@@ -38,6 +39,13 @@ const STEP_NAMES = [
   "Rendering YouTube video", "Uploading files", "Saving to Airtable", "Sending notification",
 ];
 
+interface PersonInfo {
+  name: string;
+  bio?: string;
+  photoUrl?: string;
+  linkedinUrl?: string;
+}
+
 interface JobStatus {
   jobId: string;
   status: "queued" | "processing" | "done" | "error";
@@ -54,12 +62,77 @@ interface JobStatus {
   audioUrl?: string;
   promoVerticalUrl?: string;
   promoHorizontalUrl?: string;
+  sceneImageUrls?: string[];
+  animatedSceneUrls?: string[];
+  guest?: PersonInfo | null;
+  host?: PersonInfo | null;
   srt?: string;
   error?: string;
+  createdAt?: string;
   results?: { title?: string; posts?: Record<string, string> };
 }
 
-// ── PostCard with attached media ───────────────────────────────────────
+// ── Elapsed timer ─────────────────────────────────────────────────────
+
+function ElapsedTime({ startTime, done }: { startTime: string; done: boolean }) {
+  const [elapsed, setElapsed] = useState("");
+
+  useEffect(() => {
+    const start = new Date(startTime).getTime();
+    if (!start) return;
+
+    const tick = () => {
+      const diff = (done ? Date.now() : Date.now()) - start;
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setElapsed(`${mins}:${String(secs).padStart(2, "0")}`);
+    };
+    tick();
+    if (done) return;
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [startTime, done]);
+
+  return (
+    <div className="flex items-center gap-1.5 text-[10px] text-white/25">
+      <Clock size={9} />
+      <span className="font-mono">{elapsed}</span>
+    </div>
+  );
+}
+
+// ── Person Card ───────────────────────────────────────────────────────
+
+function PersonCard({ person, role }: { person: PersonInfo; role: "guest" | "host" }) {
+  if (!person?.name) return null;
+
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${BORDER}` }}>
+      {person.photoUrl ? (
+        <img src={person.photoUrl} alt={person.name} className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-white/10" />
+      ) : (
+        <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-white/5 border border-white/10">
+          <User2 size={16} className="text-white/20" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-white/80">{person.name}</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-white/30 uppercase tracking-wider">{role}</span>
+        </div>
+        {person.bio && <p className="text-[10px] text-white/35 mt-0.5 line-clamp-2">{person.bio}</p>}
+        {person.linkedinUrl && (
+          <a href={person.linkedinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-1 text-[9px] text-[#0A66C2] hover:underline">
+            <FaLinkedinIn size={8} /> LinkedIn
+            <ExternalLink size={7} />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── PostCard with attached media ──────────────────────────────────────
 
 function PostCard({
   platform, text, heroImageUrl, gammaExportUrl, promoVerticalUrl, promoHorizontalUrl, index,
@@ -81,7 +154,15 @@ function PostCard({
     });
   };
 
-  // Determine which media to show
+  // Character count and platform limits
+  const charLimits: Record<string, number> = {
+    x: 280, threads: 500, bluesky: 300, tiktok: 2200,
+    linkedin: 3000, instagram: 2200, facebook: 63206, youtube: 5000, pinterest: 500,
+  };
+  const limit = charLimits[platform] || 5000;
+  const charCount = text.length;
+  const isOver = charCount > limit;
+
   let imageUrl: string | undefined;
   let videoUrl: string | undefined;
   if (meta.mediaType === "image") imageUrl = heroImageUrl;
@@ -106,12 +187,20 @@ function PostCard({
           <Icon size={12} color={meta.color} />
         </div>
         <span className="text-sm font-semibold text-white/80 flex-1">{meta.label}</span>
+
+        {/* Media indicators */}
         {(imageUrl || videoUrl) && (
           <div className="flex items-center gap-1 mr-2">
             {imageUrl && <div className="w-1.5 h-1.5 rounded-full bg-green-400" title="Image" />}
             {videoUrl && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" title="Video" />}
           </div>
         )}
+
+        {/* Char count */}
+        <span className={`text-[9px] font-mono mr-2 ${isOver ? "text-red-400" : "text-white/15"}`}>
+          {charCount}/{limit}
+        </span>
+
         <ChevronDown size={13} className={`text-white/20 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -129,10 +218,10 @@ function PostCard({
               <div className="relative pt-3">
                 <button
                   onClick={handleCopy}
-                  className="absolute top-3 right-0 flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium"
-                  style={{ background: `${GOLD}12`, border: `1px solid ${GOLD}20`, color: GOLD }}
+                  className="absolute top-3 right-0 flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors"
+                  style={{ background: copied ? "#1DB95415" : `${GOLD}12`, border: `1px solid ${copied ? "#1DB95425" : `${GOLD}20`}`, color: copied ? "#1DB954" : GOLD }}
                 >
-                  <Copy size={10} />
+                  {copied ? <CheckCheck size={10} /> : <Copy size={10} />}
                   {copied ? "Copied!" : "Copy"}
                 </button>
                 <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap pr-20 max-h-48 overflow-y-auto">
@@ -177,18 +266,22 @@ function PostCard({
   );
 }
 
-// ── Main Page ──────────────────────────────────────────────────────────
+// ── Main Page ─────────────────────────────────────────────────────────
 
 export default function JobPage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
   const [job, setJob] = useState<JobStatus | null>(null);
   const [srtOpen, setSrtOpen] = useState(false);
+  const [sceneOpen, setSceneOpen] = useState(false);
+  const [allCopied, setAllCopied] = useState(false);
+  const startTimeRef = useRef<string>("");
 
   useEffect(() => {
     const poll = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/job/${jobId}`);
         const data = await res.json();
+        if (!startTimeRef.current && data.createdAt) startTimeRef.current = data.createdAt;
         setJob(data);
         if (data.status === "done" || data.status === "error") return;
       } catch (err) {
@@ -204,6 +297,30 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
   const title = job?.title || job?.results?.title || "";
   const isDone = job?.status === "done";
   const isProcessing = job?.status === "processing";
+
+  // Collect all assets for summary
+  const assetCount = [
+    job?.heroImageUrl ? 1 : 0,
+    job?.gammaExportUrl ? 1 : 0,
+    job?.promoVerticalUrl ? 1 : 0,
+    job?.promoHorizontalUrl ? 1 : 0,
+    ...(job?.sceneImageUrls || []).map(() => 1),
+    ...(job?.animatedSceneUrls || []).map(() => 1),
+  ].reduce((a, b) => a + b, 0);
+
+  const postCount = posts ? Object.values(posts).filter(Boolean).length : 0;
+
+  const handleCopyAll = () => {
+    if (!posts) return;
+    const allText = Object.entries(PLATFORM_META)
+      .map(([key, meta]) => posts[key] ? `--- ${meta.label} ---\n${posts[key]}` : "")
+      .filter(Boolean)
+      .join("\n\n");
+    navigator.clipboard.writeText(allText).then(() => {
+      setAllCopied(true);
+      setTimeout(() => setAllCopied(false), 2000);
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex flex-col">
@@ -221,7 +338,10 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
             <p className="text-xs font-bold text-white/85 truncate max-w-[300px]" style={{ fontFamily: "var(--font-heading)" }}>
               {title || "Processing..."}
             </p>
-            <p className="text-[9px] text-white/25 font-mono">{jobId.substring(0, 8)}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[9px] text-white/25 font-mono">{jobId.substring(0, 8)}</p>
+              {startTimeRef.current && <ElapsedTime startTime={startTimeRef.current} done={isDone || job?.status === "error"} />}
+            </div>
           </div>
         </div>
         <UserButton />
@@ -306,6 +426,20 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
               </div>
             </div>
 
+            {/* Guest / Host Research Cards */}
+            {(job.guest?.name || job.host?.name) && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Briefcase size={12} color={GOLD} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>People</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {job.guest?.name && <PersonCard person={job.guest} role="guest" />}
+                  {job.host?.name && <PersonCard person={job.host} role="host" />}
+                </div>
+              </div>
+            )}
+
             {/* Audio Player */}
             {job.audioUrl && (
               <div className="rounded-xl p-3.5 flex items-center gap-3" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
@@ -361,14 +495,26 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
             {/* Posts with media */}
             {posts && Object.keys(posts).length > 0 && (
               <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles size={12} color={GOLD} />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>
-                    Social Posts
-                  </span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: `${GOLD}12`, color: GOLD }}>
-                    {Object.keys(posts).filter(k => posts[k]).length}
-                  </span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={12} color={GOLD} />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>
+                      Social Posts
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: `${GOLD}12`, color: GOLD }}>
+                      {postCount}
+                    </span>
+                  </div>
+
+                  {/* Copy All button */}
+                  <button
+                    onClick={handleCopyAll}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all hover:scale-105"
+                    style={{ background: allCopied ? "#1DB95412" : `${GOLD}08`, border: `1px solid ${allCopied ? "#1DB95420" : `${GOLD}15`}`, color: allCopied ? "#1DB954" : GOLD }}
+                  >
+                    {allCopied ? <CheckCheck size={10} /> : <Copy size={10} />}
+                    {allCopied ? "All copied!" : "Copy all"}
+                  </button>
                 </div>
                 <div className="space-y-2">
                   {Object.keys(PLATFORM_META).map((key, i) => {
@@ -391,26 +537,128 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
               </div>
             )}
 
+            {/* Scene Images Gallery */}
+            {job.sceneImageUrls && job.sceneImageUrls.length > 0 && (
+              <div>
+                <button onClick={() => setSceneOpen(!sceneOpen)} className="flex items-center gap-2 mb-3 group">
+                  <Image size={12} color={GOLD} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>
+                    AI Scene Images
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: `${GOLD}12`, color: GOLD }}>
+                    {job.sceneImageUrls.length}
+                  </span>
+                  <ChevronDown size={10} className={`text-white/20 transition-transform ${sceneOpen ? "rotate-180" : ""}`} />
+                </button>
+                <AnimatePresence>
+                  {sceneOpen && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {job.sceneImageUrls.map((url, i) => (
+                          <div key={i} className="rounded-lg overflow-hidden border group relative" style={{ borderColor: BORDER }}>
+                            <img src={url} alt={`Scene ${i + 1}`} className="w-full aspect-video object-cover" />
+                            <a
+                              href={url} download
+                              className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ background: "rgba(0,0,0,0.8)", color: GOLD }}
+                            >
+                              <Download size={8} />PNG
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Animated scenes */}
+                      {job.animatedSceneUrls && job.animatedSceneUrls.length > 0 && (
+                        <div className="mt-2">
+                          {job.animatedSceneUrls.map((url, i) => (
+                            <div key={i} className="rounded-lg overflow-hidden border" style={{ borderColor: BORDER }}>
+                              <video controls className="w-full" preload="metadata">
+                                <source src={url} type="video/mp4" />
+                              </video>
+                              <div className="flex items-center justify-between px-3 py-1.5" style={{ background: "#0d0d14" }}>
+                                <span className="text-[9px] text-white/30">Animated scene {i + 1}</span>
+                                <a href={url} download className="text-[9px] font-medium" style={{ color: GOLD }}>
+                                  <Download size={9} className="inline mr-1" />MP4
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
             {/* Error */}
             {job.status === "error" && (
               <div className="p-4 rounded-xl bg-red-500/[0.06] border border-red-500/15 flex items-start gap-2">
                 <AlertCircle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-red-300/80">{job.error || "An unknown error occurred"}</p>
+                <div>
+                  <p className="text-xs text-red-300/80 font-medium">Pipeline failed</p>
+                  <p className="text-[10px] text-red-300/50 mt-0.5">{job.error || "An unknown error occurred"}</p>
+                </div>
               </div>
             )}
 
-            {/* Done */}
+            {/* Done: asset summary */}
             {isDone && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ type: "spring", stiffness: 200 }}
-                className="p-6 rounded-xl text-center"
+                className="p-6 rounded-xl"
                 style={{ background: `radial-gradient(circle at 50% 20%, ${GOLD}05, ${CARD_BG})`, border: `1px solid ${GOLD}12` }}
               >
-                <p className="text-2xl mb-2">✦</p>
-                <p className="text-sm font-bold text-white/90" style={{ fontFamily: "var(--font-heading)" }}>Content repurposed.</p>
-                <p className="text-[10px] text-white/30 mt-1">Expand each post to copy text and download media.</p>
+                <div className="text-center mb-4">
+                  <p className="text-2xl mb-2">✦</p>
+                  <p className="text-sm font-bold text-white/90" style={{ fontFamily: "var(--font-heading)" }}>Content repurposed.</p>
+                </div>
+
+                {/* Asset summary grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                  {postCount > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border" style={{ borderColor: BORDER }}>
+                      <FileText size={12} className="text-white/30" />
+                      <div>
+                        <p className="text-xs font-bold text-white/70">{postCount}</p>
+                        <p className="text-[8px] text-white/25 uppercase">Posts</p>
+                      </div>
+                    </div>
+                  )}
+                  {assetCount > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border" style={{ borderColor: BORDER }}>
+                      <Image size={12} className="text-white/30" />
+                      <div>
+                        <p className="text-xs font-bold text-white/70">{assetCount}</p>
+                        <p className="text-[8px] text-white/25 uppercase">Assets</p>
+                      </div>
+                    </div>
+                  )}
+                  {job.srt && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border" style={{ borderColor: BORDER }}>
+                      <Headphones size={12} className="text-white/30" />
+                      <div>
+                        <p className="text-xs font-bold text-white/70">1</p>
+                        <p className="text-[8px] text-white/25 uppercase">Transcript</p>
+                      </div>
+                    </div>
+                  )}
+                  {job.gammaUrl && (
+                    <a href={job.gammaUrl} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border hover:bg-white/[0.04] transition-colors" style={{ borderColor: BORDER }}>
+                      <ExternalLink size={12} className="text-white/30" />
+                      <div>
+                        <p className="text-xs font-bold text-white/70">Gamma</p>
+                        <p className="text-[8px] text-white/25 uppercase">View</p>
+                      </div>
+                    </a>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-white/30 text-center">Expand each post to copy text and download media.</p>
               </motion.div>
             )}
           </main>

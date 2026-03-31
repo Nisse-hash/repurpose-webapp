@@ -2,13 +2,35 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
-import { Upload, Link, FileText, Zap, Music, Video, Globe, FileImage } from "lucide-react";
+import { Upload, Link, FileText, Zap, Music, Video, Globe, FileImage, Clock, ArrowRight, Check, Loader2 } from "lucide-react";
 import { GlowCard } from "@/components/ui/spotlight-card";
 import { ParticleButton } from "@/components/ui/particle-button";
 
 const GOLD = "#C9A84C";
+const CARD_BG = "#13131A";
+const BORDER = "rgba(255,255,255,0.06)";
 
 type InputMode = "url" | "file" | "text";
+
+interface JobSummary {
+  jobId: string;
+  status: string;
+  title: string;
+  progress: number;
+  createdAt: string;
+  completedSteps: number;
+  totalSteps: number;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 
 export default function DashboardPage() {
   const [mode, setMode] = useState<InputMode>("url");
@@ -17,6 +39,15 @@ export default function DashboardPage() {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [recentJobs, setRecentJobs] = useState<JobSummary[]>([]);
+
+  // Fetch job history
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/jobs`)
+      .then(r => r.json())
+      .then(d => setRecentJobs(d.jobs || []))
+      .catch(() => {});
+  }, []);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -62,7 +93,6 @@ export default function DashboardPage() {
 
   const hasInput = mode === "url" ? urlInput.trim() : mode === "file" ? !!file : textInput.trim();
 
-  // Detect content type from URL
   const detectedType = (() => {
     if (mode !== "url" || !urlInput.trim()) return null;
     const url = urlInput.toLowerCase();
@@ -76,7 +106,6 @@ export default function DashboardPage() {
     return null;
   })();
 
-  // Enter key to submit
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Enter" && !e.shiftKey && hasInput && !submitting) {
@@ -112,7 +141,7 @@ export default function DashboardPage() {
       </header>
 
       {/* Main content */}
-      <main className="flex flex-col items-center justify-center px-4 pt-20">
+      <main className="flex flex-col items-center justify-center px-4 pt-16">
         <h1
           className="text-3xl md:text-4xl font-bold mb-2 tracking-tight"
           style={{ fontFamily: "var(--font-heading)" }}
@@ -235,7 +264,7 @@ export default function DashboardPage() {
             </p>
           )}
 
-          {/* Submit button: particles assemble into button when input is provided */}
+          {/* Submit button */}
           <ParticleButton
             visible={!!hasInput}
             onClick={handleSubmit}
@@ -243,6 +272,65 @@ export default function DashboardPage() {
             label={submitting ? "Processing..." : "Repurpose It  \u2192"}
           />
         </div>
+
+        {/* Recent Jobs */}
+        {recentJobs.length > 0 && (
+          <div className="w-full max-w-2xl mt-16 mb-12">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock size={12} className="text-white/25" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/25">Recent</span>
+            </div>
+            <div className="space-y-1.5">
+              {recentJobs.slice(0, 8).map((job) => (
+                <a
+                  key={job.jobId}
+                  href={`/dashboard/${job.jobId}`}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl group transition-all hover:scale-[1.005]"
+                  style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}
+                >
+                  {/* Status indicator */}
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: job.status === "done" ? `${GOLD}15` : job.status === "error" ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.03)",
+                    }}
+                  >
+                    {job.status === "done" ? <Check size={10} color={GOLD} />
+                      : job.status === "error" ? <span className="text-red-400 text-[9px]">!</span>
+                      : job.status === "processing" ? <Loader2 size={10} className="animate-spin text-white/40" />
+                      : <Clock size={10} className="text-white/20" />}
+                  </div>
+
+                  {/* Job info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-white/70 truncate">
+                      {job.title || `Job ${job.jobId.substring(0, 8)}`}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[9px] text-white/25 font-mono">{job.jobId.substring(0, 8)}</span>
+                      {job.createdAt && <span className="text-[9px] text-white/20">{timeAgo(job.createdAt)}</span>}
+                    </div>
+                  </div>
+
+                  {/* Progress */}
+                  {job.status === "processing" && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1 rounded-full bg-white/[0.04] overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${job.progress}%`, background: `linear-gradient(90deg, ${GOLD}, #F0B429)` }} />
+                      </div>
+                      <span className="text-[9px] font-mono" style={{ color: GOLD }}>{job.progress}%</span>
+                    </div>
+                  )}
+
+                  {job.status === "done" && (
+                    <span className="text-[9px] text-white/20">{job.completedSteps}/{job.totalSteps} steps</span>
+                  )}
+
+                  <ArrowRight size={12} className="text-white/10 group-hover:text-white/30 transition-colors flex-shrink-0" />
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
