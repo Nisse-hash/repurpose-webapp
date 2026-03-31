@@ -539,8 +539,6 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                     ))
                   ) : job.gammaExportUrl && job.gammaExportUrl.startsWith("http") && !job.gammaExportUrl.endsWith(".zip") ? (
                     <div className="flex-shrink-0 w-36"><MediaThumb src={job.gammaExportUrl} type="image" label="Carousel 4:5" aspect="4:5" /></div>
-                  ) : job.gammaExportUrl ? (
-                    <div className="flex-shrink-0 w-36"><MediaThumb src={job.gammaExportUrl} type="image" label="Carousel (ZIP)" aspect="4:5" /></div>
                   ) : null}
                   {job.gammaUrl && (
                     <a href={job.gammaUrl} target="_blank" rel="noopener noreferrer"
