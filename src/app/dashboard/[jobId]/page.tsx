@@ -270,16 +270,35 @@ function PostCard({
 
       {/* Always visible content */}
       <div className="px-4 pb-3" style={{ borderTop: `1px solid ${BORDER}` }}>
-        <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap pt-2.5 max-h-32 overflow-y-auto">
-          {text}
-        </p>
-
-        {/* Media: small thumbnails, click to enlarge */}
-        {(imageUrl || videoUrl) && (
-          <div className="mt-2 flex gap-2">
-            {imageUrl && <div className="w-32"><MediaThumb src={imageUrl} type="image" label={meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"} /></div>}
-            {videoUrl && <div className="w-32"><MediaThumb src={videoUrl} type="video" label={meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"} /></div>}
+        {imageUrl && !videoUrl ? (
+          /* Single image: side by side with text */
+          <div className="flex gap-3 pt-2.5">
+            <div className="w-28 flex-shrink-0"><MediaThumb src={imageUrl} type="image" label={meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"} /></div>
+            <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto flex-1">
+              {text}
+            </p>
           </div>
+        ) : !imageUrl && videoUrl ? (
+          /* Single video: side by side with text */
+          <div className="flex gap-3 pt-2.5">
+            <div className="w-28 flex-shrink-0"><MediaThumb src={videoUrl} type="video" label={meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"} /></div>
+            <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto flex-1">
+              {text}
+            </p>
+          </div>
+        ) : (
+          /* Multiple media or no media: text on top, media under */
+          <>
+            <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap pt-2.5 max-h-32 overflow-y-auto">
+              {text}
+            </p>
+            {(imageUrl || videoUrl) && (
+              <div className="mt-2 flex gap-2">
+                {imageUrl && <div className="w-28"><MediaThumb src={imageUrl} type="image" label={meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"} /></div>}
+                {videoUrl && <div className="w-28"><MediaThumb src={videoUrl} type="video" label={meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"} /></div>}
+              </div>
+            )}
+          </>
         )}
       </div>
     </motion.div>
