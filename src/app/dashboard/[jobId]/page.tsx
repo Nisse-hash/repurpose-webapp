@@ -428,9 +428,9 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
             className="hidden md:flex flex-col border-r overflow-y-auto"
             style={{ flex: "0 0 50%", borderColor: BORDER, background: "rgba(10,10,15,0.5)" }}
           >
-            <div className="p-4 flex-1">
-              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/25 mb-3">Pipeline</p>
-              <div className="space-y-0.5">
+            <div className="px-5 py-4 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/25 mb-4">Pipeline</p>
+              <div className="space-y-1">
                 {STEP_NAMES.map((stepName, i) => {
                   const stepNum = i + 1;
                   const completed = job.completedSteps || [];
@@ -441,19 +441,19 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   return (
                     <div
                       key={i}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px]"
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-[14px]"
                       style={{
                         background: isActive ? `${GOLD}08` : "transparent",
                         border: isActive ? `1px solid ${GOLD}15` : "1px solid transparent",
                         opacity: isSkipped ? 0.2 : 1,
                       }}
                     >
-                      <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                         style={{ background: stepDone ? `${GOLD}20` : isActive ? `${GOLD}12` : "rgba(255,255,255,0.03)" }}
                       >
-                        {stepDone ? <Check size={8} color={GOLD} />
-                          : isActive ? <Loader2 size={8} className="animate-spin" color={GOLD} />
-                          : <Minus size={8} className="text-white/10" />}
+                        {stepDone ? <Check size={10} color={GOLD} />
+                          : isActive ? <Loader2 size={10} className="animate-spin" color={GOLD} />
+                          : <Minus size={10} className="text-white/10" />}
                       </div>
                       <span className={stepDone ? "text-white/50" : isActive ? "text-white/90 font-medium" : isSkipped ? "text-white/10 line-through" : "text-white/20"}>
                         {stepName}
