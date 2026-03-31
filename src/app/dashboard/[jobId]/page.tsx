@@ -176,7 +176,8 @@ function ElapsedTime({ startTime, done }: { startTime: string; done: boolean }) 
 
 // ── Person Card ───────────────────────────────────────────────────────
 
-function PersonCard({ person, role }: { person: PersonInfo; role: "guest" | "host" }) {
+function PersonCard({ person, role }: { person: PersonInfo; role: string }) {
+  const [expanded, setExpanded] = useState(false);
   if (!person?.name) return null;
 
   return (
@@ -193,7 +194,16 @@ function PersonCard({ person, role }: { person: PersonInfo; role: "guest" | "hos
           <span className="text-xs font-semibold text-white/80">{person.name}</span>
           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-white/30 uppercase tracking-wider">{role}</span>
         </div>
-        {person.bio && <p className="text-[10px] text-white/35 mt-0.5 line-clamp-2">{person.bio}</p>}
+        {person.bio && (
+          <>
+            <p className={`text-[10px] text-white/35 mt-0.5 ${expanded ? "" : "line-clamp-2"}`}>{person.bio}</p>
+            {person.bio.length > 100 && (
+              <button onClick={() => setExpanded(!expanded)} className="text-[9px] mt-0.5 font-medium" style={{ color: GOLD }}>
+                {expanded ? "Less" : "More"}
+              </button>
+            )}
+          </>
+        )}
         {person.linkedinUrl && (
           <a href={person.linkedinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-1 text-[9px] text-[#0A66C2] hover:underline">
             <FaLinkedinIn size={8} /> LinkedIn
@@ -428,6 +438,22 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
             className="hidden md:flex flex-col border-r overflow-y-auto"
             style={{ flex: "0 0 50%", borderColor: BORDER, background: "rgba(10,10,15,0.5)" }}
           >
+            {/* Progress bar at top */}
+            <div className="px-5 pt-4 pb-3 border-b" style={{ borderColor: BORDER }}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] text-white/30">{isDone ? "Complete" : job.step || "Queued"}</span>
+                <span className="text-[10px] font-bold" style={{ color: GOLD }}>{job.progress}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full"
+                  animate={{ width: `${job.progress}%` }}
+                  transition={{ duration: 0.6 }}
+                  style={{ background: `linear-gradient(90deg, ${GOLD}, ${GOLD_BRIGHT})`, boxShadow: `0 0 12px ${GOLD}25` }}
+                />
+              </div>
+            </div>
+
             <div className="px-5 py-4 flex-1">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/25 mb-4">Pipeline</p>
               <div className="space-y-1">
@@ -465,21 +491,6 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
               </div>
             </div>
 
-            {/* Progress bar at bottom */}
-            <div className="p-4 border-t" style={{ borderColor: BORDER }}>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[9px] text-white/30">{isDone ? "Complete" : job.step || "Queued"}</span>
-                <span className="text-[9px] font-bold" style={{ color: GOLD }}>{job.progress}%</span>
-              </div>
-              <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full"
-                  animate={{ width: `${job.progress}%` }}
-                  transition={{ duration: 0.6 }}
-                  style={{ background: `linear-gradient(90deg, ${GOLD}, ${GOLD_BRIGHT})`, boxShadow: `0 0 12px ${GOLD}25` }}
-                />
-              </div>
-            </div>
           </aside>
 
           {/* ── RIGHT CONTENT PANEL ───────────────────────── */}
