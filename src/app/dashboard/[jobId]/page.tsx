@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { UserButton } from "@clerk/nextjs";
-import { Zap, Check, Loader2, AlertCircle, ArrowLeft, Copy, ChevronDown, Minus } from "lucide-react";
+import { Zap, Check, Loader2, AlertCircle, ArrowLeft, Copy, ChevronDown, Minus, Download, Play, FileText, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 
 const GOLD = "#C9A84C";
@@ -35,6 +35,10 @@ interface JobStatus {
   posts?: Record<string, string>;
   title?: string;
   gammaUrl?: string;
+  gammaExportUrl?: string;
+  heroImageUrl?: string;
+  audioUrl?: string;
+  srt?: string;
   error?: string;
   results?: {
     title?: string;
@@ -284,33 +288,108 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
               </div>
             )}
 
-            {/* Gamma carousel */}
-            {job.gammaUrl && (
-              <div className="mt-6">
-                <h3
-                  className="text-sm font-semibold uppercase tracking-wider mb-4"
-                  style={{ color: `${GOLD}90` }}
-                >
-                  Gamma Carousel
+            {/* Hero Image */}
+            {job.heroImageUrl && (
+              <div className="mt-8">
+                <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: `${GOLD}90` }}>
+                  Hero Image
                 </h3>
-                <a
-                  href={job.gammaUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 px-5 py-4 rounded-xl transition-all hover:scale-[1.01]"
-                  style={{
-                    background: "#13131a",
-                    border: `1px solid ${GOLD}30`,
-                    boxShadow: `0 0 12px ${GOLD}08`,
-                  }}
-                >
-                  <span className="text-2xl">📊</span>
-                  <div>
-                    <p className="text-sm font-semibold text-white">Open Gamma Carousel</p>
-                    <p className="text-xs text-white/40">4-slide social carousel, ready to share</p>
+                <div className="rounded-xl overflow-hidden border" style={{ borderColor: `${GOLD}15` }}>
+                  <img src={job.heroImageUrl} alt="Hero promotional image" className="w-full" />
+                  <div className="flex items-center justify-between px-4 py-3" style={{ background: "#13131a" }}>
+                    <span className="text-xs text-white/40">16:9 promotional image for X / LinkedIn</span>
+                    <a href={job.heroImageUrl} download className="flex items-center gap-1.5 text-xs font-medium" style={{ color: GOLD }}>
+                      <Download size={12} /> Download
+                    </a>
                   </div>
-                  <span className="ml-auto text-white/30">→</span>
-                </a>
+                </div>
+              </div>
+            )}
+
+            {/* Gamma Carousel */}
+            {(job.gammaUrl || job.gammaExportUrl) && (
+              <div className="mt-8">
+                <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: `${GOLD}90` }}>
+                  Carousel (4 slides)
+                </h3>
+                {job.gammaExportUrl && (
+                  <div className="rounded-xl overflow-hidden border mb-3" style={{ borderColor: `${GOLD}15` }}>
+                    <img src={job.gammaExportUrl} alt="Gamma carousel" className="w-full" />
+                    <div className="flex items-center justify-between px-4 py-3" style={{ background: "#13131a" }}>
+                      <span className="text-xs text-white/40">4:5 social carousel</span>
+                      <a href={job.gammaExportUrl} download className="flex items-center gap-1.5 text-xs font-medium" style={{ color: GOLD }}>
+                        <Download size={12} /> Download
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {job.gammaUrl && (
+                  <a
+                    href={job.gammaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-xs transition-all hover:bg-white/[0.02]"
+                    style={{ background: "#13131a", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <ImageIcon size={14} className="text-white/40" />
+                    <span className="text-white/50">Edit in Gamma →</span>
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* Audio Player */}
+            {job.audioUrl && (
+              <div className="mt-8">
+                <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: `${GOLD}90` }}>
+                  Audio
+                </h3>
+                <div className="rounded-xl p-4" style={{ background: "#13131a", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <audio controls className="w-full" style={{ height: 40 }}>
+                    <source src={job.audioUrl} type="audio/mpeg" />
+                  </audio>
+                  <div className="flex items-center justify-between mt-3">
+                    <span className="text-xs text-white/40">Original podcast audio</span>
+                    <a href={job.audioUrl} download className="flex items-center gap-1.5 text-xs font-medium" style={{ color: GOLD }}>
+                      <Download size={12} /> Download MP3
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SRT Transcript */}
+            {job.srt && (
+              <div className="mt-8">
+                <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: `${GOLD}90` }}>
+                  Transcript (SRT)
+                </h3>
+                <div className="rounded-xl overflow-hidden" style={{ background: "#13131a", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                    <div className="flex items-center gap-2">
+                      <FileText size={14} className="text-white/40" />
+                      <span className="text-sm text-white/60">Timestamped transcript</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const blob = new Blob([job.srt!], { type: "text/srt" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `${title || "transcript"}.srt`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-medium"
+                      style={{ color: GOLD }}
+                    >
+                      <Download size={12} /> Download SRT
+                    </button>
+                  </div>
+                  <pre className="px-4 py-3 text-xs text-white/50 leading-relaxed max-h-64 overflow-y-auto whitespace-pre-wrap font-mono">
+                    {job.srt.substring(0, 3000)}{job.srt.length > 3000 ? "\n\n..." : ""}
+                  </pre>
+                </div>
               </div>
             )}
 
