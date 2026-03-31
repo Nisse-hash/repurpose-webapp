@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap, Check, Loader2, AlertCircle, ArrowLeft, Copy, ChevronDown,
   Minus, Download, FileText, Headphones, Sparkles, Play, Video,
-  Clock, Image, Send, CheckCheck, ExternalLink, User2, Briefcase, RefreshCw,
+  Clock, Image, Send, CheckCheck, ExternalLink, User2, Briefcase, RefreshCw, X, Maximize2,
 } from "lucide-react";
 import {
   FaLinkedinIn, FaInstagram, FaXTwitter, FaFacebook, FaTiktok,
@@ -18,7 +18,61 @@ const GOLD = "#C9A84C";
 const GOLD_BRIGHT = "#F0B429";
 const CARD_BG = "#13131A";
 const BORDER = "rgba(255,255,255,0.06)";
-const SIDEBAR_W = "280px";
+const SIDEBAR_W = "50%";
+
+// ── Lightbox for click-to-enlarge media ──────────────────────────────
+function Lightbox({ src, type, onClose }: { src: string; type: "image" | "video"; onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer"
+      onClick={onClose}
+    >
+      <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10">
+        <X size={20} className="text-white" />
+      </button>
+      <div className="max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+        {type === "image" ? (
+          <img src={src} alt="Full size" className="max-w-full max-h-[85vh] object-contain rounded-lg" />
+        ) : (
+          <video controls autoPlay className="max-w-full max-h-[85vh] rounded-lg">
+            <source src={src} type="video/mp4" />
+          </video>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// Thumbnail wrapper: small preview, click to enlarge
+function MediaThumb({ src, type, label, downloadLabel }: { src: string; type: "image" | "video"; label: string; downloadLabel?: string }) {
+  const [lightbox, setLightbox] = useState(false);
+  return (
+    <>
+      <AnimatePresence>{lightbox && <Lightbox src={src} type={type} onClose={() => setLightbox(false)} />}</AnimatePresence>
+      <div className="rounded-lg overflow-hidden border cursor-pointer group relative" style={{ borderColor: BORDER }} onClick={() => setLightbox(true)}>
+        {type === "image" ? (
+          <img src={src} alt={label} className="w-full h-24 object-cover" />
+        ) : (
+          <video className="w-full h-24 object-cover" preload="metadata" muted>
+            <source src={src} type="video/mp4" />
+          </video>
+        )}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+          <Maximize2 size={16} className="text-white" />
+        </div>
+        <div className="flex items-center justify-between px-2 py-1" style={{ background: "#0d0d14" }}>
+          <span className="text-[8px] text-white/30">{label}</span>
+          <a href={src} download onClick={(e) => e.stopPropagation()} className="text-[8px] font-medium" style={{ color: GOLD }}>
+            <Download size={8} className="inline mr-0.5" />{downloadLabel || (type === "image" ? "PNG" : "MP4")}
+          </a>
+        </div>
+      </div>
+    </>
+  );
+}
 
 const PLATFORM_META: Record<string, { label: string; icon: any; color: string; mediaType: "image" | "carousel" | "vertical" | "horizontal" | "none" }> = {
   linkedin:  { label: "LinkedIn",       icon: FaLinkedinIn, color: "#0A66C2", mediaType: "image" },
@@ -206,33 +260,11 @@ function PostCard({
           {text}
         </p>
 
-        {/* Media: always visible */}
+        {/* Media: small thumbnails, click to enlarge */}
         {(imageUrl || videoUrl) && (
-          <div className="mt-2.5 space-y-2">
-            {imageUrl && (
-              <div className="rounded-lg overflow-hidden border" style={{ borderColor: BORDER }}>
-                <img src={imageUrl} alt={`${meta.label} visual`} className="w-full max-h-44 object-cover" />
-                <div className="flex items-center justify-between px-3 py-1" style={{ background: "#0d0d14" }}>
-                  <span className="text-[9px] text-white/30">{meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"}</span>
-                  <a href={imageUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
-                    <Download size={9} className="inline mr-1" />PNG
-                  </a>
-                </div>
-              </div>
-            )}
-            {videoUrl && (
-              <div className="rounded-lg overflow-hidden border" style={{ borderColor: BORDER }}>
-                <video controls className="w-full max-h-44" preload="metadata">
-                  <source src={videoUrl} type="video/mp4" />
-                </video>
-                <div className="flex items-center justify-between px-3 py-1" style={{ background: "#0d0d14" }}>
-                  <span className="text-[9px] text-white/30">{meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"}</span>
-                  <a href={videoUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
-                    <Download size={9} className="inline mr-1" />MP4
-                  </a>
-                </div>
-              </div>
-            )}
+          <div className="mt-2 flex gap-2">
+            {imageUrl && <div className="w-32"><MediaThumb src={imageUrl} type="image" label={meta.mediaType === "carousel" ? "Carousel 4:5" : "Image 16:9"} /></div>}
+            {videoUrl && <div className="w-32"><MediaThumb src={videoUrl} type="video" label={meta.mediaType === "horizontal" ? "16:9 promo" : "9:16 vertical"} /></div>}
           </div>
         )}
       </div>
@@ -449,28 +481,12 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   <Image size={12} color={GOLD} />
                   <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>Visuals</span>
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2">
+                <div className="flex gap-2 overflow-x-auto pb-2">
                   {job.heroImageUrl && job.heroImageUrl.startsWith("http") && (
-                    <div className="flex-shrink-0 rounded-lg overflow-hidden border" style={{ borderColor: BORDER, width: "280px" }}>
-                      <img src={job.heroImageUrl} alt="Hero image" className="w-full h-40 object-cover" />
-                      <div className="flex items-center justify-between px-3 py-1" style={{ background: "#0d0d14" }}>
-                        <span className="text-[9px] text-white/30">Hero 16:9</span>
-                        <a href={job.heroImageUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
-                          <Download size={9} className="inline mr-1" />PNG
-                        </a>
-                      </div>
-                    </div>
+                    <div className="flex-shrink-0 w-36"><MediaThumb src={job.heroImageUrl} type="image" label="Hero 16:9" /></div>
                   )}
                   {job.gammaExportUrl && job.gammaExportUrl.startsWith("http") && (
-                    <div className="flex-shrink-0 rounded-lg overflow-hidden border" style={{ borderColor: BORDER, width: "220px" }}>
-                      <img src={job.gammaExportUrl} alt="Carousel" className="w-full h-40 object-cover" />
-                      <div className="flex items-center justify-between px-3 py-1" style={{ background: "#0d0d14" }}>
-                        <span className="text-[9px] text-white/30">Carousel 4:5</span>
-                        <a href={job.gammaExportUrl} download className="text-[9px] font-medium" style={{ color: GOLD }}>
-                          <Download size={9} className="inline mr-1" />PNG
-                        </a>
-                      </div>
-                    </div>
+                    <div className="flex-shrink-0 w-36"><MediaThumb src={job.gammaExportUrl} type="image" label="Carousel 4:5" /></div>
                   )}
                   {job.gammaUrl && (
                     <a href={job.gammaUrl} target="_blank" rel="noopener noreferrer"
@@ -650,25 +666,9 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   </span>
                   <span className="text-[9px] text-white/20 ml-1">15s best moments</span>
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                <div className="flex gap-2 overflow-x-auto pb-2">
                   {job.shortsUrls.map((url, i) => (
-                    <div
-                      key={i}
-                      className="flex-shrink-0 w-40 rounded-xl overflow-hidden border group"
-                      style={{ borderColor: BORDER, background: CARD_BG }}
-                    >
-                      <div className="relative">
-                        <video controls className="w-full aspect-[9/16]" preload="metadata" playsInline>
-                          <source src={url} type="video/mp4" />
-                        </video>
-                      </div>
-                      <div className="flex items-center justify-between px-2.5 py-1.5">
-                        <span className="text-[9px] text-white/30">Short {i + 1}</span>
-                        <a href={url} download className="text-[9px] font-medium" style={{ color: GOLD }}>
-                          <Download size={9} className="inline mr-0.5" />MP4
-                        </a>
-                      </div>
-                    </div>
+                    <div key={i} className="flex-shrink-0 w-24"><MediaThumb src={url} type="video" label={`Short ${i + 1}`} /></div>
                   ))}
                 </div>
               </div>
@@ -684,17 +684,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   </span>
                   <span className="text-[9px] text-white/20 ml-1">Speaker viz + karaoke subtitles</span>
                 </div>
-                <div className="rounded-xl overflow-hidden border" style={{ borderColor: BORDER, background: CARD_BG }}>
-                  <video controls className="w-full aspect-video" preload="metadata" playsInline>
-                    <source src={job.fullVideoUrl} type="video/mp4" />
-                  </video>
-                  <div className="flex items-center justify-between px-4 py-2" style={{ background: "#0d0d14" }}>
-                    <span className="text-[10px] text-white/30">16:9 full episode with speaker aura + word-by-word subtitles</span>
-                    <a href={job.fullVideoUrl} download className="text-[10px] font-medium flex items-center gap-1" style={{ color: GOLD }}>
-                      <Download size={10} />MP4
-                    </a>
-                  </div>
-                </div>
+                <div className="w-48"><MediaThumb src={job.fullVideoUrl} type="video" label="Full episode, karaoke subs" /></div>
               </div>
             )}
 
