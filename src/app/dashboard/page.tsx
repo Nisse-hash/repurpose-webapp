@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { Upload, Link, FileText, Zap, Music, Video, Globe, FileImage, Clock, ArrowRight, Check, Loader2, AlertCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GlowCard } from "@/components/ui/spotlight-card";
@@ -67,6 +67,7 @@ function Toast({ msg, type, onClose }: { msg: string; type: "error" | "success";
 }
 
 export default function DashboardPage() {
+  const { user } = useUser();
   const [mode, setMode] = useState<InputMode>("url");
   const [urlInput, setUrlInput] = useState("");
   const [textInput, setTextInput] = useState("");
@@ -80,7 +81,7 @@ export default function DashboardPage() {
 
   // Fetch job history
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/jobs`)
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/jobs${user?.id ? `?userId=${user.id}` : ""}`)
       .then(r => r.json())
       .then(d => setRecentJobs(d.jobs || []))
       .catch(() => showToast("Could not load recent jobs"));
@@ -132,6 +133,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           type: "auto",
           input,
+          userId: user?.id || null,
           config: { platforms: ["linkedin", "instagram", "x", "facebook", "tiktok", "youtube", "pinterest", "threads", "bluesky"] },
         }),
       });

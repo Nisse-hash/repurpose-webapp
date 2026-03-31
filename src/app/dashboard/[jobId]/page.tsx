@@ -46,13 +46,24 @@ function Lightbox({ src, type, onClose }: { src: string; type: "image" | "video"
   );
 }
 
-// Thumbnail wrapper: small preview, click to enlarge
+// Thumbnail wrapper: hover preview + click to enlarge
 function MediaThumb({ src, type, label, downloadLabel, aspect }: { src: string; type: "image" | "video"; label: string; downloadLabel?: string; aspect?: "16:9" | "9:16" | "4:5" | "1:1" }) {
   const [lightbox, setLightbox] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [hoverPreview, setHoverPreview] = useState(false);
+  const hoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isZip = src.endsWith(".zip");
 
   const aspectClass = aspect === "9:16" ? "aspect-[9/16]" : aspect === "4:5" ? "aspect-[4/5]" : aspect === "1:1" ? "aspect-square" : "aspect-video";
+
+  const showPreview = () => {
+    if (imgError || isZip || type === "video") return;
+    hoverTimeout.current = setTimeout(() => setHoverPreview(true), 200);
+  };
+  const hidePreview = () => {
+    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
+    setHoverPreview(false);
+  };
 
   return (
     <>
@@ -61,6 +72,8 @@ function MediaThumb({ src, type, label, downloadLabel, aspect }: { src: string; 
         className="rounded-lg overflow-hidden border cursor-pointer group relative"
         style={{ borderColor: BORDER }}
         onClick={() => !imgError && !isZip && setLightbox(true)}
+        onMouseEnter={showPreview}
+        onMouseLeave={hidePreview}
       >
         {imgError || isZip ? (
           <div className={`w-full ${aspectClass} flex flex-col items-center justify-center gap-1 bg-white/[0.02]`}>
@@ -79,6 +92,25 @@ function MediaThumb({ src, type, label, downloadLabel, aspect }: { src: string; 
             <Maximize2 size={16} className="text-white" />
           </div>
         )}
+
+        {/* Hover Preview Tooltip */}
+        <AnimatePresence>
+          {hoverPreview && type === "image" && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 8 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="absolute z-50 pointer-events-none"
+              style={{ bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)" }}
+            >
+              <div className="rounded-xl overflow-hidden shadow-2xl" style={{ border: `1px solid ${GOLD}30`, boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${GOLD}10` }}>
+                <img src={src} alt={label} className="w-72 max-h-80 object-contain bg-[#0a0a0f]" />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex items-center justify-between px-2 py-1" style={{ background: "#0d0d14" }}>
           <span className="text-[8px] text-white/30">{label}</span>
           <a href={src} download onClick={(e) => e.stopPropagation()} className="text-[8px] font-medium" style={{ color: GOLD }}>
@@ -140,6 +172,16 @@ interface JobStatus {
   guest?: PersonInfo | null;
   host?: PersonInfo | null;
   srt?: string;
+  analytics?: {
+    talkTime?: { guest: number; host: number };
+    talkTimeByPhase?: { intro: { guest: number; host: number }; middle: { guest: number; host: number }; outro: { guest: number; host: number } };
+    guestValuePoints?: string[];
+    hostValuePoints?: string[];
+    keyLessons?: string[];
+    growthAdvice?: string[];
+    missedQuestions?: string[];
+    nextEpisodeIdeas?: string[];
+  } | null;
   error?: string;
   createdAt?: string;
   results?: { title?: string; posts?: Record<string, string> };
@@ -315,6 +357,193 @@ function PostCard({
         )}
       </div>
     </motion.div>
+  );
+}
+
+// ── Talk Time Bar ────────────────────────────────────────────────────
+
+function TalkTimeBar({ guest, host, guestName, hostName }: { guest: number; host: number; guestName: string; hostName: string }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="text-white/50">{hostName}</span>
+        <span className="text-white/50">{guestName}</span>
+      </div>
+      <div className="h-5 rounded-full overflow-hidden flex" style={{ background: "rgba(255,255,255,0.04)" }}>
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${host}%` }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="h-full flex items-center justify-center"
+          style={{ background: "rgba(255,255,255,0.12)" }}
+        >
+          <span className="text-[9px] font-bold text-white/60">{host}%</span>
+        </motion.div>
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${guest}%` }}
+          transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
+          className="h-full flex items-center justify-center"
+          style={{ background: `linear-gradient(90deg, ${GOLD}80, ${GOLD_BRIGHT}80)` }}
+        >
+          <span className="text-[9px] font-bold text-black/70">{guest}%</span>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+function PhaseBreakdown({ phases, guestName, hostName }: { phases: { intro: { guest: number; host: number }; middle: { guest: number; host: number }; outro: { guest: number; host: number } }; guestName: string; hostName: string }) {
+  const labels = ["Intro", "Middle", "Outro"] as const;
+  const keys = ["intro", "middle", "outro"] as const;
+
+  return (
+    <div className="space-y-1.5">
+      {keys.map((key, i) => (
+        <div key={key} className="flex items-center gap-2">
+          <span className="text-[9px] text-white/30 w-10 text-right">{labels[i]}</span>
+          <div className="flex-1 h-3 rounded-full overflow-hidden flex" style={{ background: "rgba(255,255,255,0.03)" }}>
+            <div className="h-full" style={{ width: `${phases[key].host}%`, background: "rgba(255,255,255,0.10)" }} />
+            <div className="h-full" style={{ width: `${phases[key].guest}%`, background: `${GOLD}60` }} />
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center gap-3 mt-1">
+        <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm" style={{ background: "rgba(255,255,255,0.12)" }} /><span className="text-[8px] text-white/25">{hostName}</span></div>
+        <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm" style={{ background: `${GOLD}60` }} /><span className="text-[8px] text-white/25">{guestName}</span></div>
+      </div>
+    </div>
+  );
+}
+
+function BulletSection({ title, icon, items, color }: { title: string; icon: React.ReactNode; items: string[]; color?: string }) {
+  const [open, setOpen] = useState(false);
+  if (!items || items.length === 0) return null;
+
+  return (
+    <div className="rounded-lg overflow-hidden" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-3 py-2 text-left">
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-[10px] font-semibold" style={{ color: color || "rgba(255,255,255,0.6)" }}>{title}</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: `${GOLD}10`, color: GOLD }}>{items.length}</span>
+        </div>
+        <ChevronDown size={10} className={`text-white/20 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+            <div className="px-3 pb-3 space-y-1.5" style={{ borderTop: `1px solid ${BORDER}` }}>
+              {items.map((item, i) => (
+                <div key={i} className="flex items-start gap-2 pt-1.5">
+                  <span className="text-[9px] font-bold mt-0.5" style={{ color: GOLD }}>{i + 1}.</span>
+                  <p className="text-[10px] text-white/45 leading-relaxed">{item}</p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Podcast Analytics ────────────────────────────────────────────────
+
+function PodcastAnalytics({ analytics, guestName, hostName }: { analytics: NonNullable<JobStatus["analytics"]>; guestName: string; hostName: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div>
+      <button onClick={() => setOpen(!open)} className="flex items-center gap-2 mb-3 group">
+        <Sparkles size={12} color={GOLD} />
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>Podcast Insights</span>
+        <ChevronDown size={10} className={`text-white/20 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden space-y-3"
+          >
+            {/* Talk Time Overview */}
+            {analytics.talkTime && (
+              <div className="rounded-xl p-4" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+                <p className="text-[10px] font-semibold text-white/50 mb-3 uppercase tracking-wider">Who talks more?</p>
+                <TalkTimeBar
+                  guest={analytics.talkTime.guest}
+                  host={analytics.talkTime.host}
+                  guestName={guestName}
+                  hostName={hostName}
+                />
+                {analytics.talkTimeByPhase && (
+                  <div className="mt-4">
+                    <p className="text-[9px] text-white/30 mb-2">By phase</p>
+                    <PhaseBreakdown phases={analytics.talkTimeByPhase} guestName={guestName} hostName={hostName} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Value Points (guest + host side by side) */}
+            {(analytics.guestValuePoints || analytics.hostValuePoints) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {analytics.guestValuePoints && (
+                  <BulletSection
+                    title={`${guestName}'s key points`}
+                    icon={<User2 size={10} color={GOLD} />}
+                    items={analytics.guestValuePoints}
+                    color={GOLD}
+                  />
+                )}
+                {analytics.hostValuePoints && (
+                  <BulletSection
+                    title={`${hostName}'s key points`}
+                    icon={<User2 size={10} className="text-white/40" />}
+                    items={analytics.hostValuePoints}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Key Lessons */}
+            <BulletSection
+              title="Key lessons for listeners"
+              icon={<FileText size={10} color={GOLD} />}
+              items={analytics.keyLessons || []}
+              color={GOLD}
+            />
+
+            {/* Growth Advice */}
+            <BulletSection
+              title="Growth advice for the host"
+              icon={<Sparkles size={10} color="#1DB954" />}
+              items={analytics.growthAdvice || []}
+              color="#1DB954"
+            />
+
+            {/* Missed Questions */}
+            <BulletSection
+              title="Questions she could have asked"
+              icon={<AlertCircle size={10} color="#F59E0B" />}
+              items={analytics.missedQuestions || []}
+              color="#F59E0B"
+            />
+
+            {/* Next Episode Ideas */}
+            <BulletSection
+              title="Ideas for next episodes"
+              icon={<Zap size={10} color="#8B5CF6" />}
+              items={analytics.nextEpisodeIdeas || []}
+              color="#8B5CF6"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -738,6 +967,15 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                 </div>
                 <div className="w-48"><MediaThumb src={job.fullVideoUrl} type="video" label="Full episode, karaoke subs" aspect="16:9" /></div>
               </div>
+            )}
+
+            {/* Podcast Analytics / Insights */}
+            {job.analytics && (
+              <PodcastAnalytics
+                analytics={job.analytics}
+                guestName={job.guest?.name || "Guest"}
+                hostName={job.host?.name || "Host"}
+              />
             )}
 
             {/* Error */}
