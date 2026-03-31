@@ -136,6 +136,7 @@ interface JobStatus {
   animatedSceneUrls?: string[];
   shortsUrls?: string[];
   fullVideoUrl?: string;
+  carouselImageUrls?: string[];
   guest?: PersonInfo | null;
   host?: PersonInfo | null;
   srt?: string;
@@ -520,9 +521,16 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   {job.heroImageUrl && job.heroImageUrl.startsWith("http") && (
                     <div className="flex-shrink-0 w-36"><MediaThumb src={job.heroImageUrl} type="image" label="Hero 16:9" aspect="16:9" /></div>
                   )}
-                  {job.gammaExportUrl && job.gammaExportUrl.startsWith("http") && (
+                  {/* Individual carousel slides (extracted from ZIP) */}
+                  {job.carouselImageUrls && job.carouselImageUrls.length > 0 ? (
+                    job.carouselImageUrls.map((url, i) => (
+                      <div key={`slide-${i}`} className="flex-shrink-0 w-28"><MediaThumb src={url} type="image" label={`Slide ${i + 1}`} aspect="4:5" /></div>
+                    ))
+                  ) : job.gammaExportUrl && job.gammaExportUrl.startsWith("http") && !job.gammaExportUrl.endsWith(".zip") ? (
                     <div className="flex-shrink-0 w-36"><MediaThumb src={job.gammaExportUrl} type="image" label="Carousel 4:5" aspect="4:5" /></div>
-                  )}
+                  ) : job.gammaExportUrl ? (
+                    <div className="flex-shrink-0 w-36"><MediaThumb src={job.gammaExportUrl} type="image" label="Carousel (ZIP)" aspect="4:5" /></div>
+                  ) : null}
                   {job.gammaUrl && (
                     <a href={job.gammaUrl} target="_blank" rel="noopener noreferrer"
                       className="flex-shrink-0 w-40 h-40 rounded-lg border flex flex-col items-center justify-center gap-2 hover:bg-white/[0.02] transition-colors"
