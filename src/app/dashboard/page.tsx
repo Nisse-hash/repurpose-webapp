@@ -5,7 +5,7 @@ import { UserButton, useUser } from "@clerk/nextjs";
 import {
   Upload, Link, FileText, Zap, Music, Video, Globe, FileImage,
   Clock, ArrowRight, Check, Loader2, AlertCircle, X, Palette,
-  ChevronDown, Image, Sparkles, Trash2,
+  ChevronDown, Image, Sparkles, Trash2, Plus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ParticleButton } from "@/components/ui/particle-button";
@@ -81,8 +81,10 @@ export default function DashboardPage() {
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [showOptions, setShowOptions] = useState(false);
   const [podcastName, setPodcastName] = useState("");
-  const [hostName, setHostName] = useState("");
-  const [guestName, setGuestName] = useState("");
+  const [speakers, setSpeakers] = useState<{ name: string; role: string; photoFile?: File; photoPreview?: string }[]>([
+    { name: "", role: "host" },
+    { name: "", role: "guest" },
+  ]);
 
   // Brand reference image
   const [brandImage, setBrandImage] = useState<File | null>(null);
@@ -268,8 +270,9 @@ export default function DashboardPage() {
           ...(audioUrl ? { audioUrl } : {}),
           context: {
             podcastName: podcastName.trim() || undefined,
-            hostName: hostName.trim() || undefined,
-            guestName: guestName.trim() || undefined,
+            hostName: speakers.find(s => s.role === "host")?.name?.trim() || undefined,
+            guestName: speakers.find(s => s.role === "guest")?.name?.trim() || undefined,
+            speakers: speakers.filter(s => s.name.trim()).map(s => ({ name: s.name.trim(), role: s.role })),
           },
           config: { platforms: ["linkedin", "instagram", "x", "facebook", "tiktok", "youtube", "pinterest", "threads", "bluesky"] },
         }),
@@ -303,7 +306,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [hasInput, submitting, urlInput, textInput, file, mode]);
 
-  const hasContext = podcastName || hostName || guestName;
+  const hasContext = podcastName || speakers.some(s => s.name.trim());
   const hasBrandRef = brandImagePreview || brandColors.length > 0;
 
   return (
@@ -514,16 +517,74 @@ export default function DashboardPage() {
               >
                 <div className="rounded-xl p-4 space-y-4" style={{ background: "rgba(255,255,255,0.015)", border: `1px solid ${BORDER}` }}>
 
-                  {/* Context fields */}
+                  {/* Podcast name */}
                   <div>
-                    <label className="text-[9px] uppercase tracking-widest text-white/25 font-medium mb-2 block">Context (optional)</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <input type="text" placeholder="Podcast name" value={podcastName} onChange={(e) => setPodcastName(e.target.value)}
-                        className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-white/10 transition-colors" />
-                      <input type="text" placeholder="Host name" value={hostName} onChange={(e) => setHostName(e.target.value)}
-                        className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-white/10 transition-colors" />
-                      <input type="text" placeholder="Guest name" value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                        className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-white/10 transition-colors" />
+                    <label className="text-[9px] uppercase tracking-widest text-white/25 font-medium mb-2 block">Podcast / show name</label>
+                    <input type="text" placeholder="e.g. La Claque" value={podcastName} onChange={(e) => setPodcastName(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-white/10 transition-colors" />
+                  </div>
+
+                  {/* Speakers */}
+                  <div>
+                    <label className="text-[9px] uppercase tracking-widest text-white/25 font-medium mb-2 block">Speakers</label>
+                    <div className="space-y-2">
+                      {speakers.map((speaker, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          {/* Photo */}
+                          {speaker.photoPreview ? (
+                            <div className="relative group flex-shrink-0">
+                              <img src={speaker.photoPreview} alt="" className="w-9 h-9 rounded-full object-cover border border-white/10" />
+                              <button onClick={() => {
+                                const updated = [...speakers];
+                                updated[idx] = { ...updated[idx], photoFile: undefined, photoPreview: undefined };
+                                setSpeakers(updated);
+                              }} className="absolute -top-1 -right-1 p-0.5 rounded-full bg-red-500/30 border border-red-500/40 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <X size={7} />
+                              </button>
+                            </div>
+                          ) : (
+                            <button onClick={() => {
+                              const input = document.createElement("input");
+                              input.type = "file";
+                              input.accept = "image/*";
+                              input.onchange = (e) => {
+                                const f = (e.target as HTMLInputElement).files?.[0];
+                                if (f) {
+                                  const updated = [...speakers];
+                                  updated[idx] = { ...updated[idx], photoFile: f, photoPreview: URL.createObjectURL(f) };
+                                  setSpeakers(updated);
+                                }
+                              };
+                              input.click();
+                            }} className="w-9 h-9 rounded-full border border-dashed border-white/10 flex items-center justify-center hover:border-white/20 transition-colors flex-shrink-0">
+                              <Image size={12} className="text-white/15" />
+                            </button>
+                          )}
+                          {/* Name */}
+                          <input type="text" placeholder={`${speaker.role} name`} value={speaker.name}
+                            onChange={(e) => { const u = [...speakers]; u[idx] = { ...u[idx], name: e.target.value }; setSpeakers(u); }}
+                            className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-white/10 transition-colors" />
+                          {/* Role selector */}
+                          <select value={speaker.role}
+                            onChange={(e) => { const u = [...speakers]; u[idx] = { ...u[idx], role: e.target.value }; setSpeakers(u); }}
+                            className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-2 py-2 text-[10px] text-white/40 outline-none cursor-pointer">
+                            <option value="host">Host</option>
+                            <option value="guest">Guest</option>
+                            <option value="cohost">Co-host</option>
+                          </select>
+                          {/* Remove (only if more than 2) */}
+                          {speakers.length > 2 && (
+                            <button onClick={() => setSpeakers(speakers.filter((_, i) => i !== idx))}
+                              className="p-1 text-white/15 hover:text-red-400 transition-colors">
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button onClick={() => setSpeakers([...speakers, { name: "", role: "guest" }])}
+                        className="flex items-center gap-1.5 text-[10px] text-white/25 hover:text-white/40 transition-colors mt-1">
+                        <Plus size={10} /> Add speaker
+                      </button>
                     </div>
                   </div>
 
