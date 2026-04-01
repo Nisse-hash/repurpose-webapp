@@ -862,7 +862,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   <Image size={12} color={GOLD} />
                   <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>Visuals</span>
                 </div>
-                <div className="flex gap-2 overflow-x-auto pb-2">
+                <div className="flex gap-2 overflow-x-auto pb-2 items-end">
                   {job.heroImageUrl && job.heroImageUrl.startsWith("http") && (
                     <div className="flex-shrink-0 w-36"><MediaThumb src={job.heroImageUrl} type="image" label="Hero 16:9" aspect="16:9" /></div>
                   )}
