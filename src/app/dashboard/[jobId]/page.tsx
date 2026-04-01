@@ -141,6 +141,22 @@ const STEP_NAMES = [
   "Rendering audio shorts", "Rendering full YouTube video", "Saving to Airtable", "Sending notification",
 ];
 
+const FUN_MESSAGES: Record<number, string[]> = {
+  1: ["Listening carefully...", "Decoding the audio waves...", "Teaching AI to hear...", "Tuning the frequencies...", "Warming up the microphone..."],
+  2: ["Stalking LinkedIn politely...", "Googling with finesse...", "Reading bios like novels...", "Fetching the headshots...", "Building dossiers..."],
+  3: ["Channeling the copywriter within...", "Crafting scroll-stoppers...", "Adding the right hashtags...", "Making it sound effortless...", "Polishing every word..."],
+  4: ["Painting with pixels...", "Choosing the perfect vibe...", "Making it Instagram-worthy...", "Adjusting the lighting...", "Adding that golden glow..."],
+  5: ["Negotiating with Canva...", "Picking the right template...", "Designing like a pro...", "Making it pop...", "Aligning the elements..."],
+  6: ["Building the carousel...", "Sliding into your DMs...", "Stacking the slides...", "Making each slide count...", "Adding visual magic..."],
+  7: ["Imagining the scenes...", "Painting with AI brushes...", "Generating visual poetry...", "Rendering imagination...", "Creating cinematic moments..."],
+  8: ["Bringing images to life...", "Adding subtle motion...", "Teaching pixels to dance...", "Animating the atmosphere...", "Making still frames breathe..."],
+  9: ["Stitching the promo together...", "Adding the finishing touches...", "Rendering frame by frame...", "Compressing with care...", "Making it shareworthy..."],
+  10: ["Picking the best moments...", "Cutting the clips...", "Adding those subtitles...", "Syncing the audio...", "Rendering the shorts..."],
+  11: ["Assembling the masterpiece...", "Syncing speakers and scenes...", "Rendering the karaoke magic...", "Building the waveforms...", "Creating YouTube gold..."],
+  12: ["Filing everything neatly...", "Updating the records...", "Organizing the assets...", "Saving to the cloud...", "Crossing the t's..."],
+  13: ["Sending the pigeon...", "Notifying the team...", "Dispatching the message...", "Ringing the bell...", "Spreading the good news..."],
+};
+
 interface PersonInfo {
   name: string;
   bio?: string;
@@ -557,6 +573,22 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
   const [allCopied, setAllCopied] = useState(false);
   const startTimeRef = useRef<string>("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [funMsg, setFunMsg] = useState("");
+  const funMsgIdx = useRef(0);
+
+  // Cycle fun messages for active step
+  useEffect(() => {
+    if (!job || job.status !== "processing") return;
+    const msgs = FUN_MESSAGES[job.stepNumber] || [];
+    if (msgs.length === 0) return;
+    setFunMsg(msgs[0]);
+    funMsgIdx.current = 0;
+    const timer = setInterval(() => {
+      funMsgIdx.current = (funMsgIdx.current + 1) % msgs.length;
+      setFunMsg(msgs[funMsgIdx.current]);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [job?.stepNumber, job?.status]);
 
   const pollNow = async () => {
     try {
@@ -694,26 +726,43 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   const isSkipped = isDone && !stepDone;
 
                   return (
-                    <div
-                      key={i}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-[14px]"
-                      style={{
-                        background: isActive ? `${GOLD}08` : "transparent",
-                        border: isActive ? `1px solid ${GOLD}15` : "1px solid transparent",
-                        opacity: isSkipped ? 0.2 : 1,
-                      }}
-                    >
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{ background: stepDone ? `${GOLD}20` : isActive ? `${GOLD}12` : "rgba(255,255,255,0.03)" }}
+                    <div key={i}>
+                      <div
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] transition-all ${isActive ? "animate-pulse" : ""}`}
+                        style={{
+                          background: isActive ? `${GOLD}08` : "transparent",
+                          border: isActive ? `1px solid ${GOLD}15` : "1px solid transparent",
+                          opacity: isSkipped ? 0.2 : 1,
+                          animationDuration: isActive ? "2s" : undefined,
+                        }}
                       >
-                        {stepDone ? <Check size={10} color={GOLD} />
-                          : isActive ? <Loader2 size={10} className="animate-spin" color={GOLD} />
-                          : <Minus size={10} className="text-white/10" />}
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ background: stepDone ? `${GOLD}20` : isActive ? `${GOLD}12` : "rgba(255,255,255,0.03)" }}
+                        >
+                          {stepDone ? <Check size={10} color={GOLD} />
+                            : isActive ? <Loader2 size={10} className="animate-spin" color={GOLD} />
+                            : <Minus size={10} className="text-white/10" />}
+                        </div>
+                        <span className={stepDone ? "text-white/50" : isActive ? "text-white/90 font-medium" : isSkipped ? "text-white/10 line-through" : "text-white/20"}>
+                          {stepName}
+                        </span>
+                        {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full animate-ping" style={{ background: GOLD, boxShadow: `0 0 6px ${GOLD}` }} />}
                       </div>
-                      <span className={stepDone ? "text-white/50" : isActive ? "text-white/90 font-medium" : isSkipped ? "text-white/10 line-through" : "text-white/20"}>
-                        {stepName}
-                      </span>
-                      {isActive && <div className="ml-auto w-1 h-1 rounded-full" style={{ background: GOLD, boxShadow: `0 0 4px ${GOLD}` }} />}
+                      {isActive && funMsg && (
+                        <AnimatePresence mode="wait">
+                          <motion.p
+                            key={funMsg}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.3 }}
+                            className="text-[11px] pl-11 pb-1 italic"
+                            style={{ color: `${GOLD}60` }}
+                          >
+                            {funMsg}
+                          </motion.p>
+                        </AnimatePresence>
+                      )}
                     </div>
                   );
                 })}
