@@ -244,7 +244,10 @@ export default function DashboardPage() {
             Repurpose
           </span>
         </a>
-        <UserButton />
+        <div className="flex items-center gap-4">
+          <a href="/settings" className="text-[11px] text-white/30 hover:text-white/60 transition-colors">Settings</a>
+          <UserButton />
+        </div>
       </header>
 
       {/* Main content */}

@@ -185,6 +185,7 @@ interface JobStatus {
   animatedSceneUrls?: string[];
   shortsUrls?: string[];
   fullVideoUrl?: string;
+  fullVideoVerticalUrl?: string;
   carouselImageUrls?: string[];
   guest?: PersonInfo | null;
   host?: PersonInfo | null;
@@ -904,7 +905,10 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
             </button>
           )}
         </div>
-        <UserButton />
+        <div className="flex items-center gap-4">
+          <Link href="/settings" className="text-[11px] text-white/30 hover:text-white/60 transition-colors">Settings</Link>
+          <UserButton />
+        </div>
       </header>
 
       {!job ? (
@@ -1337,7 +1341,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
             )}
 
             {/* Full YouTube Video */}
-            {job.fullVideoUrl && (
+            {(job.fullVideoUrl || job.fullVideoVerticalUrl) && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Video size={12} color="#FF0000" />
@@ -1346,7 +1350,10 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   </span>
                   <span className="text-[9px] text-white/20 ml-1">Speaker viz + karaoke subtitles</span>
                 </div>
-                <div className="w-48"><MediaThumb src={job.fullVideoUrl} type="video" label="Full episode, karaoke subs" aspect="16:9" /></div>
+                <div className="flex gap-2">
+                  {job.fullVideoUrl && <div className="w-48"><MediaThumb src={job.fullVideoUrl} type="video" label="Full episode 16:9" aspect="16:9" /></div>}
+                  {job.fullVideoVerticalUrl && <div className="w-28"><MediaThumb src={job.fullVideoVerticalUrl} type="video" label="Full episode 9:16" aspect="9:16" /></div>}
+                </div>
               </div>
             )}
 
