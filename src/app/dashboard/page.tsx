@@ -77,6 +77,10 @@ export default function DashboardPage() {
   const [recentJobs, setRecentJobs] = useState<JobSummary[]>([]);
   const [toast, setToast] = useState<{ msg: string; type: "error" | "success" } | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [showContext, setShowContext] = useState(false);
+  const [podcastName, setPodcastName] = useState("");
+  const [hostName, setHostName] = useState("");
+  const [guestName, setGuestName] = useState("");
 
   const showToast = (msg: string, type: "error" | "success" = "error") => setToast({ msg, type });
 
@@ -165,6 +169,11 @@ export default function DashboardPage() {
           input,
           userId: user?.id || null,
           ...(audioUrl ? { audioUrl } : {}),
+          context: {
+            podcastName: podcastName.trim() || undefined,
+            hostName: hostName.trim() || undefined,
+            guestName: guestName.trim() || undefined,
+          },
           config: { platforms: ["linkedin", "instagram", "x", "facebook", "tiktok", "youtube", "pinterest", "threads", "bluesky"] },
         }),
       });
@@ -364,6 +373,47 @@ export default function DashboardPage() {
               </span>
             </div>
           )}
+
+          {/* Optional context fields */}
+          <button
+            onClick={() => setShowContext(!showContext)}
+            className="mt-3 text-[10px] uppercase tracking-widest text-white/20 hover:text-white/40 transition-colors"
+          >
+            {showContext ? "Hide context" : "+ Add context (podcast name, host, guest)"}
+          </button>
+
+          <AnimatePresence>
+            {showContext && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-3 grid grid-cols-3 gap-2 overflow-hidden"
+              >
+                <input
+                  type="text"
+                  placeholder="Podcast name"
+                  value={podcastName}
+                  onChange={(e) => setPodcastName(e.target.value)}
+                  className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-white/10"
+                />
+                <input
+                  type="text"
+                  placeholder="Host name"
+                  value={hostName}
+                  onChange={(e) => setHostName(e.target.value)}
+                  className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-white/10"
+                />
+                <input
+                  type="text"
+                  placeholder="Guest name"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-white/10"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Keyboard hint */}
           {hasInput && (
