@@ -401,16 +401,16 @@ export default function DashboardPage() {
           transition={{ duration: 0.5, delay: 0.25 }}
           className="w-full max-w-2xl"
         >
-          <div className="rounded-2xl" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
               {mode === "url" && (
-                <div className="flex items-center">
-                  <div className="pl-5 text-white/15"><Link size={16} /></div>
+                <div className="flex items-center px-5 gap-3">
+                  <Link size={16} className="text-white/15 flex-shrink-0" />
                   <input
                     type="url"
                     placeholder="Paste a URL... (Spotify, YouTube, article, audio)"
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
-                    className="w-full bg-transparent px-4 py-5 text-white text-base placeholder:text-white/15 outline-none"
+                    className="w-full bg-transparent py-5 text-white text-base placeholder:text-white/15 outline-none"
                     autoFocus
                   />
                 </div>
@@ -495,7 +495,8 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={() => setShowOptions(!showOptions)}
-              className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-white/20 hover:text-white/40 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[10px] uppercase tracking-widest text-white/35 hover:text-white/60 transition-all hover:bg-white/[0.04]"
+              style={{ border: `1px solid ${BORDER}` }}
             >
               <ChevronDown size={10} className={`transition-transform ${showOptions ? "rotate-180" : ""}`} />
               Options
