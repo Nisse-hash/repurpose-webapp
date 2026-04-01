@@ -8,7 +8,6 @@ import {
   ChevronDown, Image, Sparkles, Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GlowCard } from "@/components/ui/spotlight-card";
 import { ParticleButton } from "@/components/ui/particle-button";
 
 const GOLD = "#C9A84C";
@@ -68,24 +67,6 @@ function Toast({ msg, type, onClose }: { msg: string; type: "error" | "success";
   );
 }
 
-// ── Floating orbs background ────────────────────────────
-function FloatingOrbs() {
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden>
-      <div className="absolute w-[600px] h-[600px] rounded-full opacity-[0.03]" style={{
-        background: `radial-gradient(circle, ${GOLD}, transparent 70%)`,
-        top: "-10%", left: "-10%", animation: "float-slow 20s ease-in-out infinite",
-      }} />
-      <div className="absolute w-[400px] h-[400px] rounded-full opacity-[0.02]" style={{
-        background: `radial-gradient(circle, #F0B429, transparent 70%)`,
-        bottom: "5%", right: "-5%", animation: "float-slow 25s ease-in-out infinite reverse",
-      }} />
-      <style>{`
-        @keyframes float-slow { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, -40px); } }
-      `}</style>
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -131,29 +112,62 @@ export default function DashboardPage() {
       .catch(() => {});
   }, [user?.id]);
 
+  // Extract colors client-side via canvas (instant)
+  const extractColorsFromImage = (f: File): Promise<string[]> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const size = 8;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve([]); return; }
+        ctx.drawImage(img, 0, 0, size, size);
+        const data = ctx.getImageData(0, 0, size, size).data;
+        const seen = new Set<string>();
+        const colors: string[] = [];
+        for (let i = 0; i < data.length; i += 4) {
+          const hex = "#" + [data[i], data[i + 1], data[i + 2]].map(c => c.toString(16).padStart(2, "0")).join("");
+          if (!seen.has(hex)) { seen.add(hex); colors.push(hex); }
+          if (colors.length >= 6) break;
+        }
+        resolve(colors);
+      };
+      img.onerror = () => resolve([]);
+      img.src = URL.createObjectURL(f);
+    });
+  };
+
   const handleBrandImageUpload = async (f: File) => {
     setBrandImage(f);
-    setBrandImagePreview(URL.createObjectURL(f));
-    if (!user?.id) return;
+    const previewUrl = URL.createObjectURL(f);
+    setBrandImagePreview(previewUrl);
 
+    // Instant client-side color extraction
     setExtractingColors(true);
-    try {
+    const clientColors = await extractColorsFromImage(f);
+    if (clientColors.length > 0) {
+      setBrandColors(clientColors);
+    }
+    setExtractingColors(false);
+
+    // Also upload to backend for persistent storage (fire and forget)
+    if (user?.id) {
       const formData = new FormData();
       formData.append("file", f);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/branding/${user.id}/logo`, {
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/branding/${user.id}/logo`, {
         method: "POST",
         body: formData,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.extractedColors?.length) {
-          setBrandColors(data.extractedColors);
-          showToast(`Extracted ${data.extractedColors.length} colors`, "success");
+      }).then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          // Backend colors may be more accurate; update if available
+          if (data.extractedColors?.length) setBrandColors(data.extractedColors);
+          if (data.logoUrl) setBrandImagePreview(data.logoUrl);
         }
-        if (data.logoUrl) setBrandImagePreview(data.logoUrl);
-      }
-    } catch {}
-    setExtractingColors(false);
+      }).catch(() => {});
+    }
   };
 
   const removeBrandImage = () => {
@@ -259,7 +273,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white relative">
-      <FloatingOrbs />
 
       <AnimatePresence>
         {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
@@ -353,8 +366,7 @@ export default function DashboardPage() {
           transition={{ duration: 0.5, delay: 0.25 }}
           className="w-full max-w-2xl"
         >
-          <GlowCard glowColor="gold" customSize className="w-full !aspect-auto p-0">
-            <div className="relative z-10">
+          <div className="rounded-2xl" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
               {mode === "url" && (
                 <div className="flex items-center">
                   <div className="pl-5 text-white/15"><Link size={16} /></div>
@@ -419,8 +431,7 @@ export default function DashboardPage() {
                   className="w-full bg-transparent px-6 py-5 text-white text-sm placeholder:text-white/15 outline-none resize-none leading-relaxed"
                 />
               )}
-            </div>
-          </GlowCard>
+          </div>
 
           {/* Detected type + Options row */}
           <div className="flex items-center justify-between mt-3">
