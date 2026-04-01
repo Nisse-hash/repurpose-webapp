@@ -489,7 +489,7 @@ function PhaseBreakdown({ phases, guestName, hostName }: { phases: { intro: { gu
 }
 
 function BulletSection({ title, icon, items, color }: { title: string; icon: React.ReactNode; items: string[]; color?: string }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   if (!items || items.length === 0) return null;
 
   return (
