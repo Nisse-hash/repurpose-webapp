@@ -332,12 +332,15 @@ function PersonCard({ person, role, jobId, onUpdate }: { person: PersonInfo; rol
 // ── PostCard with attached media ──────────────────────────────────────
 
 function PostCard({
-  platform, text, heroImageUrl, gammaExportUrl, promoVerticalUrl, promoHorizontalUrl, index,
+  platform, text, heroImageUrl, gammaExportUrl, promoVerticalUrl, promoHorizontalUrl, index, jobId, onPostUpdate,
 }: {
-  platform: string; text: string; index: number;
+  platform: string; text: string; index: number; jobId?: string; onPostUpdate?: (newText: string) => void;
   heroImageUrl?: string; gammaExportUrl?: string; promoVerticalUrl?: string; promoHorizontalUrl?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [loading, setLoading] = useState(false);
   const meta = PLATFORM_META[platform];
   if (!meta) return null;
   const Icon = meta.icon;
@@ -347,6 +350,25 @@ function PostCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
+  };
+
+  const handleEdit = async () => {
+    if (!feedback.trim() || !jobId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/job/${jobId}/edit-step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: "post", platform, feedback: feedback.trim(), currentContent: text }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.text && onPostUpdate) onPostUpdate(data.text);
+        setEditing(false);
+        setFeedback("");
+      }
+    } catch {}
+    setLoading(false);
   };
 
   const charLimits: Record<string, number> = {
@@ -386,6 +408,13 @@ function PostCard({
           {charCount}/{limit}
         </span>
         <button
+          onClick={() => setEditing(!editing)}
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-colors hover:bg-white/5"
+          style={{ color: GOLD, border: `1px solid ${GOLD}30` }}
+        >
+          {editing ? "Cancel" : "Edit"}
+        </button>
+        <button
           onClick={handleCopy}
           className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors"
           style={{ background: copied ? "#1DB95415" : `${GOLD}12`, border: `1px solid ${copied ? "#1DB95425" : `${GOLD}20`}`, color: copied ? "#1DB954" : GOLD }}
@@ -394,6 +423,33 @@ function PostCard({
           {copied ? "Copied!" : "Copy"}
         </button>
       </div>
+      <AnimatePresence>
+        {editing && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="px-4 pb-2 flex gap-1.5 overflow-hidden"
+          >
+            <input
+              type="text"
+              placeholder="e.g. &quot;Make it shorter&quot; or &quot;Add more emojis&quot;"
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleEdit()}
+              className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-md px-2 py-1.5 text-[10px] text-white/60 placeholder:text-white/15 outline-none focus:border-white/10"
+            />
+            <button
+              onClick={handleEdit}
+              disabled={loading || !feedback.trim()}
+              className="px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors disabled:opacity-30"
+              style={{ background: `${GOLD}20`, color: GOLD, border: `1px solid ${GOLD}30` }}
+            >
+              {loading ? <Loader2 size={10} className="animate-spin" /> : "Rewrite"}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Always visible content */}
       <div className="px-4 pb-3" style={{ borderTop: `1px solid ${BORDER}` }}>
@@ -488,20 +544,82 @@ function PhaseBreakdown({ phases, guestName, hostName }: { phases: { intro: { gu
   );
 }
 
-function BulletSection({ title, icon, items, color }: { title: string; icon: React.ReactNode; items: string[]; color?: string }) {
+function BulletSection({ title, icon, items, color, jobId, sectionKey, onItemsUpdate }: { title: string; icon: React.ReactNode; items: string[]; color?: string; jobId?: string; sectionKey?: string; onItemsUpdate?: (items: string[]) => void }) {
   const [open, setOpen] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [loading, setLoading] = useState(false);
+  const handleEdit = async () => {
+    if (!feedback.trim() || !jobId || !sectionKey) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/job/${jobId}/edit-step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: "analytics", section: sectionKey, feedback: feedback.trim(), currentContent: items }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.items && onItemsUpdate) onItemsUpdate(data.items);
+        setEditing(false);
+        setFeedback("");
+      }
+    } catch {}
+    setLoading(false);
+  };
+
   if (!items || items.length === 0) return null;
 
   return (
     <div className="rounded-lg overflow-hidden" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-3 py-2 text-left">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-3 py-2">
+        <button onClick={() => setOpen(!open)} className="flex items-center gap-2 flex-1 text-left">
           {icon}
           <span className="text-[10px] font-semibold" style={{ color: color || "rgba(255,255,255,0.6)" }}>{title}</span>
           <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: `${GOLD}10`, color: GOLD }}>{items.length}</span>
+        </button>
+        <div className="flex items-center gap-1.5">
+          {jobId && sectionKey && (
+            <button
+              onClick={() => setEditing(!editing)}
+              className="text-[9px] px-2 py-0.5 rounded-md transition-colors hover:bg-white/5"
+              style={{ color: GOLD, border: `1px solid ${GOLD}30` }}
+            >
+              {editing ? "Cancel" : "Edit"}
+            </button>
+          )}
+          <button onClick={() => setOpen(!open)}>
+            <ChevronDown size={10} className={`text-white/20 transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
         </div>
-        <ChevronDown size={10} className={`text-white/20 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      </div>
+      <AnimatePresence>
+        {editing && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="px-3 pb-2 flex gap-1.5 overflow-hidden"
+          >
+            <input
+              type="text"
+              placeholder={`e.g. "Add a point about resilience" or "Make them more actionable"`}
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleEdit()}
+              className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-md px-2 py-1.5 text-[10px] text-white/60 placeholder:text-white/15 outline-none focus:border-white/10"
+            />
+            <button
+              onClick={handleEdit}
+              disabled={loading || !feedback.trim()}
+              className="px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors disabled:opacity-30"
+              style={{ background: `${GOLD}20`, color: GOLD, border: `1px solid ${GOLD}30` }}
+            >
+              {loading ? <Loader2 size={10} className="animate-spin" /> : "Go"}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {open && (
           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
@@ -522,7 +640,7 @@ function BulletSection({ title, icon, items, color }: { title: string; icon: Rea
 
 // ── Podcast Analytics ────────────────────────────────────────────────
 
-function PodcastAnalytics({ analytics, guestName, hostName }: { analytics: NonNullable<JobStatus["analytics"]>; guestName: string; hostName: string }) {
+function PodcastAnalytics({ analytics, guestName, hostName, jobId, onAnalyticsUpdate }: { analytics: NonNullable<JobStatus["analytics"]>; guestName: string; hostName: string; jobId: string; onAnalyticsUpdate: (key: string, items: string[]) => void }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -569,6 +687,9 @@ function PodcastAnalytics({ analytics, guestName, hostName }: { analytics: NonNu
                     icon={<User2 size={10} color={GOLD} />}
                     items={analytics.guestValuePoints}
                     color={GOLD}
+                    jobId={jobId}
+                    sectionKey="guestValuePoints"
+                    onItemsUpdate={(items: string[]) => onAnalyticsUpdate("guestValuePoints", items)}
                   />
                 )}
                 {analytics.hostValuePoints && (
@@ -576,41 +697,52 @@ function PodcastAnalytics({ analytics, guestName, hostName }: { analytics: NonNu
                     title={`${hostName}'s key points`}
                     icon={<User2 size={10} className="text-white/40" />}
                     items={analytics.hostValuePoints}
+                    jobId={jobId}
+                    sectionKey="hostValuePoints"
+                    onItemsUpdate={(items: string[]) => onAnalyticsUpdate("hostValuePoints", items)}
                   />
                 )}
               </div>
             )}
 
-            {/* Key Lessons */}
             <BulletSection
               title="Key lessons for listeners"
               icon={<FileText size={10} color={GOLD} />}
               items={analytics.keyLessons || []}
               color={GOLD}
+              jobId={jobId}
+              sectionKey="keyLessons"
+              onItemsUpdate={(items: string[]) => onAnalyticsUpdate("keyLessons", items)}
             />
 
-            {/* Growth Advice */}
             <BulletSection
               title="Growth advice for the host"
               icon={<Sparkles size={10} color="#1DB954" />}
               items={analytics.growthAdvice || []}
               color="#1DB954"
+              jobId={jobId}
+              sectionKey="growthAdvice"
+              onItemsUpdate={(items: string[]) => onAnalyticsUpdate("growthAdvice", items)}
             />
 
-            {/* Missed Questions */}
             <BulletSection
               title="Questions she could have asked"
               icon={<AlertCircle size={10} color="#F59E0B" />}
               items={analytics.missedQuestions || []}
               color="#F59E0B"
+              jobId={jobId}
+              sectionKey="missedQuestions"
+              onItemsUpdate={(items: string[]) => onAnalyticsUpdate("missedQuestions", items)}
             />
 
-            {/* Next Episode Ideas */}
             <BulletSection
               title="Ideas for next episodes"
               icon={<Zap size={10} color="#8B5CF6" />}
               items={analytics.nextEpisodeIdeas || []}
               color="#8B5CF6"
+              jobId={jobId}
+              sectionKey="nextEpisodeIdeas"
+              onItemsUpdate={(items: string[]) => onAnalyticsUpdate("nextEpisodeIdeas", items)}
             />
           </motion.div>
         )}
@@ -1068,6 +1200,8 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                         platform={key}
                         text={text}
                         index={i}
+                        jobId={jobId}
+                        onPostUpdate={(newText) => setJob(prev => prev?.posts ? { ...prev, posts: { ...prev.posts, [key]: newText } } : prev)}
                         heroImageUrl={job.heroImageUrl || undefined}
                         gammaExportUrl={job.gammaExportUrl || undefined}
                         promoVerticalUrl={job.promoVerticalUrl || undefined}
@@ -1175,6 +1309,8 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                 analytics={job.analytics}
                 guestName={job.guest?.name || "Guest"}
                 hostName={job.host?.name || "Host"}
+                jobId={jobId}
+                onAnalyticsUpdate={(key, items) => setJob(prev => prev?.analytics ? { ...prev, analytics: { ...prev.analytics, [key]: items } } : prev)}
               />
             )}
 
