@@ -755,73 +755,168 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
             className="hidden md:flex flex-col border-r overflow-y-auto"
             style={{ flex: "0 0 50%", borderColor: BORDER, background: "rgba(10,10,15,0.5)" }}
           >
-            {/* Progress bar at top */}
-            <div className="px-5 pt-4 pb-3 border-b" style={{ borderColor: BORDER }}>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] text-white/30">{isDone ? "Complete" : job.step || "Queued"}</span>
-                <span className="text-[10px] font-bold" style={{ color: GOLD }}>{job.progress}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+            {/* Hero progress section */}
+            <div className="px-6 pt-6 pb-5 border-b" style={{ borderColor: BORDER }}>
+              {isProcessing ? (
+                <>
+                  {/* Big animated percentage */}
+                  <div className="flex items-end gap-3 mb-3">
+                    <motion.span
+                      key={job.progress}
+                      initial={{ opacity: 0.5, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="text-4xl font-black tabular-nums"
+                      style={{ color: GOLD, fontFamily: "var(--font-heading)", textShadow: `0 0 30px ${GOLD}30` }}
+                    >
+                      {job.progress}%
+                    </motion.span>
+                    <div className="pb-1.5">
+                      {startTimeRef.current && <ElapsedTime startTime={startTimeRef.current} done={false} />}
+                    </div>
+                  </div>
+                  {/* Current step name large */}
+                  <p className="text-sm font-semibold text-white/80 mb-1">{job.step || "Starting..."}</p>
+                  {/* Fun message */}
+                  <AnimatePresence mode="wait">
+                    {funMsg && (
+                      <motion.p
+                        key={funMsg}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 8 }}
+                        transition={{ duration: 0.25 }}
+                        className="text-xs italic"
+                        style={{ color: `${GOLD}50` }}
+                      >
+                        {funMsg}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </>
+              ) : isDone ? (
+                <div className="text-center py-2">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 12 }}
+                    className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center"
+                    style={{ background: `${GOLD}20`, boxShadow: `0 0 40px ${GOLD}15` }}
+                  >
+                    <Check size={20} color={GOLD} />
+                  </motion.div>
+                  <p className="text-sm font-bold text-white/80">Complete</p>
+                  <p className="text-[11px] text-white/30 mt-1">
+                    {postCount} posts, {assetCount} assets
+                    {startTimeRef.current && <> in <ElapsedTime startTime={startTimeRef.current} done={true} /></>}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-white/30">Queued...</p>
+              )}
+              {/* Progress bar */}
+              <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden mt-4">
                 <motion.div
                   className="h-full rounded-full"
                   animate={{ width: `${job.progress}%` }}
-                  transition={{ duration: 0.6 }}
-                  style={{ background: `linear-gradient(90deg, ${GOLD}, ${GOLD_BRIGHT})`, boxShadow: `0 0 12px ${GOLD}25` }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  style={{ background: `linear-gradient(90deg, ${GOLD}, ${GOLD_BRIGHT})`, boxShadow: `0 0 16px ${GOLD}30` }}
                 />
               </div>
             </div>
 
+            {/* Pipeline timeline */}
             <div className="px-5 py-4 flex-1">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/25 mb-4">Pipeline</p>
-              <div className="space-y-1">
-                {STEP_NAMES.map((stepName, i) => {
-                  const stepNum = i + 1;
-                  const completed = job.completedSteps || [];
-                  const stepDone = completed.includes(stepNum);
-                  const isActive = job.stepNumber === stepNum && isProcessing;
-                  const isSkipped = isDone && !stepDone;
+              <div className="relative">
+                {/* Vertical timeline line */}
+                <div className="absolute left-[14px] top-2 bottom-2 w-px" style={{ background: `linear-gradient(to bottom, ${GOLD}30 ${job.progress}%, rgba(255,255,255,0.04) ${job.progress}%)` }} />
 
-                  return (
-                    <div key={i}>
-                      <div
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] transition-all ${isActive ? "animate-pulse" : ""}`}
-                        style={{
-                          background: isActive ? `${GOLD}08` : "transparent",
-                          border: isActive ? `1px solid ${GOLD}15` : "1px solid transparent",
-                          opacity: isSkipped ? 0.2 : 1,
-                          animationDuration: isActive ? "2s" : undefined,
+                <div className="space-y-0.5">
+                  {STEP_NAMES.map((stepName, i) => {
+                    const stepNum = i + 1;
+                    const completed = job.completedSteps || [];
+                    const stepDone = completed.includes(stepNum);
+                    const isActive = job.stepNumber === stepNum && isProcessing;
+                    const isUpcoming = !stepDone && !isActive;
+                    const isSkipped = isDone && !stepDone;
+
+                    return (
+                      <motion.div
+                        key={i}
+                        initial={false}
+                        animate={{
+                          opacity: isSkipped ? 0.15 : isUpcoming && isProcessing ? 0.35 : 1,
+                          height: isUpcoming && isProcessing ? 32 : "auto",
                         }}
+                        transition={{ duration: 0.3 }}
                       >
-                        <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                          style={{ background: stepDone ? `${GOLD}20` : isActive ? `${GOLD}12` : "rgba(255,255,255,0.03)" }}
+                        <div
+                          className={`flex items-center gap-3 px-3 rounded-lg relative transition-all ${isActive ? "py-3" : "py-1.5"}`}
+                          style={{
+                            background: isActive ? `${GOLD}06` : "transparent",
+                            border: isActive ? `1px solid ${GOLD}12` : "1px solid transparent",
+                          }}
                         >
-                          {stepDone ? <Check size={10} color={GOLD} />
-                            : isActive ? <Loader2 size={10} className="animate-spin" color={GOLD} />
-                            : <Minus size={10} className="text-white/10" />}
+                          {/* Timeline node */}
+                          <div className="relative z-10 flex-shrink-0">
+                            {stepDone ? (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                                className="w-[18px] h-[18px] rounded-full flex items-center justify-center"
+                                style={{ background: `${GOLD}25` }}
+                              >
+                                <Check size={9} color={GOLD} strokeWidth={3} />
+                              </motion.div>
+                            ) : isActive ? (
+                              <div className="w-[18px] h-[18px] rounded-full flex items-center justify-center relative" style={{ background: `${GOLD}15` }}>
+                                <Loader2 size={9} className="animate-spin" color={GOLD} />
+                                <div className="absolute inset-0 rounded-full animate-ping" style={{ background: `${GOLD}10` }} />
+                              </div>
+                            ) : (
+                              <div className="w-[18px] h-[18px] rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.03)" }}>
+                                <div className="w-1 h-1 rounded-full bg-white/10" />
+                              </div>
+                            )}
+                          </div>
+
+                          <span className={`text-[12px] ${
+                            stepDone ? "text-white/45" :
+                            isActive ? "text-white/90 font-semibold text-[13px]" :
+                            isSkipped ? "text-white/10 line-through" :
+                            "text-white/20"
+                          }`}>
+                            {stepName}
+                          </span>
+
+                          {isActive && (
+                            <div className="ml-auto flex items-center gap-1.5">
+                              <div className="w-1 h-1 rounded-full animate-bounce" style={{ background: GOLD, animationDelay: "0ms" }} />
+                              <div className="w-1 h-1 rounded-full animate-bounce" style={{ background: GOLD, animationDelay: "150ms" }} />
+                              <div className="w-1 h-1 rounded-full animate-bounce" style={{ background: GOLD, animationDelay: "300ms" }} />
+                            </div>
+                          )}
                         </div>
-                        <span className={stepDone ? "text-white/50" : isActive ? "text-white/90 font-medium" : isSkipped ? "text-white/10 line-through" : "text-white/20"}>
-                          {stepName}
-                        </span>
-                        {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full animate-ping" style={{ background: GOLD, boxShadow: `0 0 6px ${GOLD}` }} />}
-                      </div>
-                      {isActive && funMsg && (
-                        <AnimatePresence mode="wait">
-                          <motion.p
-                            key={funMsg}
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -4 }}
-                            transition={{ duration: 0.3 }}
-                            className="text-[11px] pl-11 pb-1 italic"
-                            style={{ color: `${GOLD}60` }}
-                          >
-                            {funMsg}
-                          </motion.p>
-                        </AnimatePresence>
-                      )}
-                    </div>
-                  );
-                })}
+                        {isActive && funMsg && (
+                          <AnimatePresence mode="wait">
+                            <motion.p
+                              key={funMsg}
+                              initial={{ opacity: 0, y: 4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -4 }}
+                              transition={{ duration: 0.3 }}
+                              className="text-[10px] pl-[30px] pb-1 italic"
+                              style={{ color: `${GOLD}45` }}
+                            >
+                              {funMsg}
+                            </motion.p>
+                          </AnimatePresence>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
