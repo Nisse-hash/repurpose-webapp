@@ -112,26 +112,61 @@ export default function DashboardPage() {
       .catch(() => {});
   }, [user?.id]);
 
-  // Extract colors client-side via canvas (instant)
+  // Extract vibrant colors client-side via canvas (instant)
   const extractColorsFromImage = (f: File): Promise<string[]> => {
     return new Promise((resolve) => {
       const img = new window.Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const size = 8;
+        const size = 64; // Higher res for better sampling
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext("2d");
         if (!ctx) { resolve([]); return; }
         ctx.drawImage(img, 0, 0, size, size);
         const data = ctx.getImageData(0, 0, size, size).data;
-        const seen = new Set<string>();
-        const colors: string[] = [];
+
+        // Collect all pixels with their saturation and lightness
+        const pixels: { r: number; g: number; b: number; sat: number; light: number }[] = [];
         for (let i = 0; i < data.length; i += 4) {
-          const hex = "#" + [data[i], data[i + 1], data[i + 2]].map(c => c.toString(16).padStart(2, "0")).join("");
-          if (!seen.has(hex)) { seen.add(hex); colors.push(hex); }
-          if (colors.length >= 6) break;
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          const max = Math.max(r, g, b), min = Math.min(r, g, b);
+          const light = (max + min) / 2 / 255;
+          const sat = max === min ? 0 : (max - min) / (light > 0.5 ? (510 - max - min) : (max + min));
+          // Skip near-black (< 12% lightness) and near-white (> 92%)
+          if (light < 0.12 || light > 0.92) continue;
+          pixels.push({ r, g, b, sat, light });
         }
+
+        // Sort by saturation (most vibrant first), then by lightness distance from 0.5
+        pixels.sort((a, b) => {
+          const scoreDiff = (b.sat * 2 + Math.abs(b.light - 0.5)) - (a.sat * 2 + Math.abs(a.light - 0.5));
+          return scoreDiff;
+        });
+
+        // Pick distinct colors (min distance between them)
+        const colors: string[] = [];
+        const colorDist = (c1: typeof pixels[0], c2: typeof pixels[0]) =>
+          Math.abs(c1.r - c2.r) + Math.abs(c1.g - c2.g) + Math.abs(c1.b - c2.b);
+
+        for (const px of pixels) {
+          const hex = "#" + [px.r, px.g, px.b].map(c => c.toString(16).padStart(2, "0")).join("");
+          const tooClose = colors.some((existing) => {
+            const er = parseInt(existing.slice(1, 3), 16);
+            const eg = parseInt(existing.slice(3, 5), 16);
+            const eb = parseInt(existing.slice(5, 7), 16);
+            return Math.abs(px.r - er) + Math.abs(px.g - eg) + Math.abs(px.b - eb) < 60;
+          });
+          if (!tooClose) colors.push(hex);
+          if (colors.length >= 5) break;
+        }
+
+        // If we got very few vibrant colors, add the dominant color anyway
+        if (colors.length === 0 && pixels.length > 0) {
+          const px = pixels[0];
+          colors.push("#" + [px.r, px.g, px.b].map(c => c.toString(16).padStart(2, "0")).join(""));
+        }
+
         resolve(colors);
       };
       img.onerror = () => resolve([]);
