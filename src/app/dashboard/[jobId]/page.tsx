@@ -13,6 +13,7 @@ import {
   FaYoutube, FaPinterestP, FaThreads, FaBluesky,
 } from "react-icons/fa6";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const GOLD = "#C9A84C";
 const GOLD_BRIGHT = "#F0B429";
@@ -235,10 +236,14 @@ function ElapsedTime({ startTime, done }: { startTime: string; done: boolean }) 
 // ── Person Card ───────────────────────────────────────────────────────
 
 function PersonCard({ person, role, jobId, onUpdate }: { person: PersonInfo; role: string; jobId: string; onUpdate?: (updated: PersonInfo) => void }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
+  const [edited, setEdited] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const [rerunning, setRerunning] = useState(false);
   if (!person?.name) return null;
 
   const handleEdit = async () => {
@@ -253,11 +258,32 @@ function PersonCard({ person, role, jobId, onUpdate }: { person: PersonInfo; rol
       if (res.ok) {
         const data = await res.json();
         if (data.person && onUpdate) onUpdate(data.person);
+        setEdited(true);
+        setEditedName(data.person?.name || "");
         setEditing(false);
         setFeedback("");
       }
     } catch {}
     setLoading(false);
+  };
+
+  const handleRerun = async () => {
+    setRerunning(true);
+    try {
+      const context: Record<string, string> = {};
+      if (role === "host") context.hostName = editedName || person.name;
+      if (role === "guest") context.guestName = editedName || person.name;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/job/${jobId}/rerun`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ context }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.jobId) router.push(`/dashboard/${data.jobId}`);
+      }
+    } catch {}
+    setRerunning(false);
   };
 
   return (
@@ -321,6 +347,27 @@ function PersonCard({ person, role, jobId, onUpdate }: { person: PersonInfo; rol
               >
                 {loading ? <Loader2 size={10} className="animate-spin" /> : "Go"}
               </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {edited && !editing && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-2 overflow-hidden"
+            >
+              <button
+                onClick={handleRerun}
+                disabled={rerunning}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-all hover:scale-[1.02]"
+                style={{ background: `${GOLD}15`, color: GOLD, border: `1px solid ${GOLD}40` }}
+              >
+                {rerunning ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                {rerunning ? "Launching re-run..." : "Re-run pipeline with corrected name"}
+              </button>
+              <p className="text-[9px] text-white/20 mt-1">Creates a new job with the correct {role} name. Reuses the same audio.</p>
             </motion.div>
           )}
         </AnimatePresence>
