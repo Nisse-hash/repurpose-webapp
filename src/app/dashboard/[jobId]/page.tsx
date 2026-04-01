@@ -234,9 +234,31 @@ function ElapsedTime({ startTime, done }: { startTime: string; done: boolean }) 
 
 // ── Person Card ───────────────────────────────────────────────────────
 
-function PersonCard({ person, role }: { person: PersonInfo; role: string }) {
+function PersonCard({ person, role, jobId, onUpdate }: { person: PersonInfo; role: string; jobId: string; onUpdate?: (updated: PersonInfo) => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [loading, setLoading] = useState(false);
   if (!person?.name) return null;
+
+  const handleEdit = async () => {
+    if (!feedback.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/job/${jobId}/edit-person`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role, feedback: feedback.trim(), currentName: person.name, currentBio: person.bio }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.person && onUpdate) onUpdate(data.person);
+        setEditing(false);
+        setFeedback("");
+      }
+    } catch {}
+    setLoading(false);
+  };
 
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${BORDER}` }}>
@@ -251,6 +273,13 @@ function PersonCard({ person, role }: { person: PersonInfo; role: string }) {
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-white/80">{person.name}</span>
           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-white/30 uppercase tracking-wider">{role}</span>
+          <button
+            onClick={() => setEditing(!editing)}
+            className="ml-auto text-[9px] px-2 py-0.5 rounded-md transition-colors hover:bg-white/5"
+            style={{ color: GOLD, border: `1px solid ${GOLD}30` }}
+          >
+            {editing ? "Cancel" : "Edit"}
+          </button>
         </div>
         {person.bio && (
           <>
@@ -268,6 +297,33 @@ function PersonCard({ person, role }: { person: PersonInfo; role: string }) {
             <ExternalLink size={7} />
           </a>
         )}
+        <AnimatePresence>
+          {editing && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-2 flex gap-1.5 overflow-hidden"
+            >
+              <input
+                type="text"
+                placeholder={`e.g. "The real host is Yael Gabizon" or "Remove the Station Woosh part"`}
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleEdit()}
+                className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-md px-2 py-1.5 text-[10px] text-white/60 placeholder:text-white/15 outline-none focus:border-white/10"
+              />
+              <button
+                onClick={handleEdit}
+                disabled={loading || !feedback.trim()}
+                className="px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors disabled:opacity-30"
+                style={{ background: `${GOLD}20`, color: GOLD, border: `1px solid ${GOLD}30` }}
+              >
+                {loading ? <Loader2 size={10} className="animate-spin" /> : "Go"}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -793,8 +849,8 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>People</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {job.guest?.name && <PersonCard person={job.guest} role="guest" />}
-                  {job.host?.name && <PersonCard person={job.host} role="host" />}
+                  {job.guest?.name && <PersonCard person={job.guest} role="guest" jobId={jobId} onUpdate={(p) => setJob(prev => prev ? { ...prev, guest: p } : prev)} />}
+                  {job.host?.name && <PersonCard person={job.host} role="host" jobId={jobId} onUpdate={(p) => setJob(prev => prev ? { ...prev, host: p } : prev)} />}
                 </div>
               </div>
             )}
