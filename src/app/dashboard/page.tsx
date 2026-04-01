@@ -76,6 +76,7 @@ export default function DashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [recentJobs, setRecentJobs] = useState<JobSummary[]>([]);
   const [toast, setToast] = useState<{ msg: string; type: "error" | "success" } | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
   const showToast = (msg: string, type: "error" | "success" = "error") => setToast({ msg, type });
 
@@ -118,15 +119,44 @@ export default function DashboardPage() {
         return;
       }
     }
+    if (mode === "file" && !file) {
+      showToast("Select a file first");
+      return;
+    }
     if (mode === "file" && file && file.size > MAX_FILE_SIZE) {
       showToast(`File too large (${(file.size / 1024 / 1024).toFixed(0)}MB). Max 500MB.`);
       return;
     }
 
     setSubmitting(true);
-    const input = mode === "url" ? urlInput : mode === "text" ? textInput : file?.name || "";
 
     try {
+      let input = mode === "url" ? urlInput : mode === "text" ? textInput : file?.name || "";
+      let audioUrl: string | undefined;
+
+      // Upload file first if in file mode
+      if (mode === "file" && file) {
+        setUploadStatus("Uploading file...");
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/upload`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json().catch(() => ({ error: "Upload failed" }));
+          showToast(err.error || "File upload failed");
+          return;
+        }
+
+        const uploadData = await uploadRes.json();
+        audioUrl = uploadData.fileUrl;
+        input = uploadData.fileName;
+        setUploadStatus(null);
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/job`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -134,6 +164,7 @@ export default function DashboardPage() {
           type: "auto",
           input,
           userId: user?.id || null,
+          ...(audioUrl ? { audioUrl } : {}),
           config: { platforms: ["linkedin", "instagram", "x", "facebook", "tiktok", "youtube", "pinterest", "threads", "bluesky"] },
         }),
       });
@@ -149,6 +180,7 @@ export default function DashboardPage() {
       showToast("Failed to connect to backend. Is the server running?");
     } finally {
       setSubmitting(false);
+      setUploadStatus(null);
     }
   };
 
@@ -345,7 +377,7 @@ export default function DashboardPage() {
             visible={!!hasInput}
             onClick={handleSubmit}
             disabled={!hasInput || submitting}
-            label={submitting ? "Processing..." : "Repurpose It  \u2192"}
+            label={submitting ? (uploadStatus || "Processing...") : "Repurpose It  \u2192"}
           />
         </div>
 
