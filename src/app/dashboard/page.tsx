@@ -193,6 +193,23 @@ export default function DashboardPage() {
         const uploadData = await uploadRes.json();
         audioUrl = uploadData.fileUrl; input = uploadData.fileName; setUploadStatus(null);
       }
+      // Upload speaker photos if provided
+      const speakerData = contentType !== "article" ? await Promise.all(
+        speakers.filter(s => s.name.trim()).map(async (s) => {
+          let photoUrl: string | undefined;
+          if (s.photoFile) {
+            try {
+              setUploadStatus(`Uploading photo for ${s.name.trim()}...`);
+              const fd = new FormData(); fd.append("file", s.photoFile);
+              const upRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/upload`, { method: "POST", body: fd });
+              if (upRes.ok) { const upData = await upRes.json(); photoUrl = upData.fileUrl; }
+            } catch {}
+          }
+          return { name: s.name.trim(), role: s.role, ...(photoUrl ? { photoUrl } : {}) };
+        })
+      ) : undefined;
+      setUploadStatus(null);
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/job`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -204,7 +221,7 @@ export default function DashboardPage() {
             podcastName: contentType === "podcast" ? podcastName.trim() || undefined : undefined,
             hostName: speakers.find(s => s.role === "host")?.name?.trim() || undefined,
             guestName: speakers.find(s => s.role === "guest")?.name?.trim() || undefined,
-            speakers: contentType !== "article" ? speakers.filter(s => s.name.trim()).map(s => ({ name: s.name.trim(), role: s.role })) : undefined,
+            speakers: speakerData,
             authorName: contentType === "article" ? authorName.trim() || undefined : undefined,
           },
           config: { platforms: ["linkedin", "instagram", "x", "facebook", "tiktok", "youtube", "pinterest", "threads", "bluesky"] },
