@@ -200,9 +200,9 @@ export default function DashboardPage() {
           if (s.photoFile) {
             try {
               setUploadStatus(`Uploading photo for ${s.name.trim()}...`);
-              const fd = new FormData(); fd.append("file", s.photoFile);
-              const upRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/upload`, { method: "POST", body: fd });
-              if (upRes.ok) { const upData = await upRes.json(); photoUrl = upData.fileUrl; }
+              const fd = new FormData(); fd.append("photo", s.photoFile);
+              const upRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/upload-photo`, { method: "POST", body: fd });
+              if (upRes.ok) { const upData = await upRes.json(); photoUrl = upData.photoUrl; }
             } catch {}
           }
           return { name: s.name.trim(), role: s.role, ...(photoUrl ? { photoUrl } : {}), ...(s.noPhoto ? { noPhoto: true } : {}) };
