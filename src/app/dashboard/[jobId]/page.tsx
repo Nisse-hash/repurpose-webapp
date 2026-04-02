@@ -7,6 +7,7 @@ import {
   Zap, Check, Loader2, AlertCircle, ArrowLeft, Copy, ChevronDown,
   Minus, Download, FileText, Headphones, Sparkles, Play, Video,
   Clock, Image, Send, CheckCheck, ExternalLink, User2, Briefcase, RefreshCw, X, Maximize2,
+  Upload, Camera, XCircle,
 } from "lucide-react";
 import {
   FaLinkedinIn, FaInstagram, FaXTwitter, FaFacebook, FaTiktok,
@@ -200,6 +201,13 @@ interface JobStatus {
     missedQuestions?: string[];
     nextEpisodeIdeas?: string[];
   } | null;
+  pendingPhotoApproval?: {
+    approvalId: string;
+    personName: string;
+    role: string;
+    photoUrls: string[];
+    status: string;
+  } | null;
   error?: string;
   createdAt?: string;
   results?: { title?: string; posts?: Record<string, string> };
@@ -230,6 +238,190 @@ function ElapsedTime({ startTime, done }: { startTime: string; done: boolean }) 
     <div className="flex items-center gap-1.5 text-[10px] text-white/25">
       <Clock size={9} />
       <span className="font-mono">{elapsed}</span>
+    </div>
+  );
+}
+
+// ── Photo Approval Panel ──────────────────────────────────────────────
+
+function PhotoApprovalPanel({ approval, backendUrl }: {
+  approval: { approvalId: string; personName: string; role: string; photoUrls: string[] };
+  backendUrl: string;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [allPhotos, setAllPhotos] = useState<string[]>(approval.photoUrls);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const toggle = (url: string) => {
+    setSelected(prev =>
+      prev.includes(url) ? prev.filter(u => u !== url) : prev.length < 2 ? [...prev, url] : prev
+    );
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("photo", file);
+      const res = await fetch(`${backendUrl}/upload-photo`, { method: "POST", body: form });
+      const data = await res.json();
+      if (data.photoUrl) {
+        setAllPhotos(prev => [...prev, data.photoUrl]);
+        setSelected(prev => prev.length < 2 ? [...prev, data.photoUrl] : prev);
+      }
+    } catch {}
+    setUploading(false);
+  };
+
+  const submit = async (decision: "approve" | "reject") => {
+    setSubmitting(true);
+    try {
+      await fetch(`${backendUrl}/photo-decision/${approval.approvalId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, selectedPhotoUrls: decision === "approve" ? selected : [] }),
+      });
+    } catch {}
+    setSubmitting(false);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="rounded-xl p-5 relative overflow-hidden"
+      style={{ background: CARD_BG, border: `1px solid ${GOLD}30` }}
+    >
+      {/* Glow accent */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(ellipse at top, ${GOLD}08, transparent 60%)` }} />
+
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-4">
+          <Camera size={16} color={GOLD} />
+          <span className="text-sm font-bold text-white">Choose photos for {approval.personName}</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold" style={{ background: `${GOLD}15`, color: GOLD }}>
+            {approval.role}
+          </span>
+        </div>
+        <p className="text-[11px] text-white/40 mb-4">Select up to 2 photos, or upload your own. Pipeline is waiting.</p>
+
+        {/* Photo grid */}
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
+          {allPhotos.map((url, i) => {
+            const isSelected = selected.includes(url);
+            return (
+              <motion.button
+                key={url}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => toggle(url)}
+                className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer"
+                style={{
+                  border: isSelected ? `2px solid ${GOLD}` : `2px solid transparent`,
+                  boxShadow: isSelected ? `0 0 16px ${GOLD}30` : "none",
+                }}
+              >
+                <img src={url} alt={`Candidate ${i + 1}`} className="w-full h-full object-cover" />
+                {/* Selection overlay */}
+                <div className={`absolute inset-0 transition-all ${isSelected ? "bg-black/20" : "bg-black/0 group-hover:bg-black/10"}`} />
+                {isSelected && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ background: GOLD }}
+                  >
+                    <Check size={10} color="#000" strokeWidth={3} />
+                  </motion.div>
+                )}
+                <span className="absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded bg-black/60 text-white/60">#{i + 1}</span>
+              </motion.button>
+            );
+          })}
+
+          {/* Upload button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => fileRef.current?.click()}
+            className="aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-white/[0.02] transition-colors"
+            style={{ borderColor: "rgba(255,255,255,0.1)" }}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <Loader2 size={16} className="animate-spin text-white/30" />
+            ) : (
+              <>
+                <Upload size={14} className="text-white/25" />
+                <span className="text-[9px] text-white/25">Upload</span>
+              </>
+            )}
+          </motion.button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => submit("approve")}
+            disabled={selected.length === 0 || submitting}
+            className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-all disabled:opacity-30"
+            style={{
+              background: selected.length > 0 ? `linear-gradient(135deg, ${GOLD}, ${GOLD_BRIGHT})` : `${GOLD}15`,
+              color: selected.length > 0 ? "#000" : `${GOLD}60`,
+            }}
+          >
+            {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : `Approve ${selected.length > 0 ? `(${selected.length})` : ""}`}
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => submit("reject")}
+            disabled={submitting}
+            className="px-4 py-2.5 rounded-lg text-sm font-medium text-white/40 hover:text-white/60 transition-colors"
+            style={{ background: "rgba(255,255,255,0.03)", border: `1px solid rgba(255,255,255,0.06)` }}
+          >
+            Reject all
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Fun Message Display (big, right panel) ───────────────────────────
+
+function FunMessageDisplay({ message, compact }: { message: string; compact?: boolean }) {
+  return (
+    <div className={`flex items-center justify-center relative ${compact ? "py-4" : "py-12 min-h-[200px]"}`}>
+      {/* Radial glow */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle, ${GOLD}06 0%, transparent 70%)` }} />
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={message}
+          initial={{ opacity: 0, scale: 0.92, filter: "blur(6px)" }}
+          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+          exit={{ opacity: 0, scale: 1.08, filter: "blur(6px)" }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className={`${compact ? "text-lg" : "text-2xl md:text-3xl"} font-bold italic text-center relative px-6`}
+          style={{
+            color: GOLD,
+            fontFamily: "var(--font-heading)",
+            textShadow: compact
+              ? `0 0 20px ${GOLD}30`
+              : `0 0 40px ${GOLD}40, 0 0 80px ${GOLD}15`,
+          }}
+        >
+          {message}
+        </motion.p>
+      </AnimatePresence>
     </div>
   );
 }
@@ -959,22 +1151,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                   </div>
                   {/* Current step name large */}
                   <p className="text-sm font-semibold text-white/80 mb-1">{job.step || "Starting..."}</p>
-                  {/* Fun message */}
-                  <AnimatePresence mode="wait">
-                    {funMsg && (
-                      <motion.p
-                        key={funMsg}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 8 }}
-                        transition={{ duration: 0.25 }}
-                        className="text-xs italic"
-                        style={{ color: `${GOLD}50` }}
-                      >
-                        {funMsg}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
+                  {/* Fun message moved to right panel */}
                 </>
               ) : isDone ? (
                 <div className="text-center py-2">
@@ -1081,21 +1258,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                             </div>
                           )}
                         </div>
-                        {isActive && funMsg && (
-                          <AnimatePresence mode="wait">
-                            <motion.p
-                              key={funMsg}
-                              initial={{ opacity: 0, y: 4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -4 }}
-                              transition={{ duration: 0.3 }}
-                              className="text-[10px] pl-[30px] pb-1 italic"
-                              style={{ color: `${GOLD}45` }}
-                            >
-                              {funMsg}
-                            </motion.p>
-                          </AnimatePresence>
-                        )}
+                        {/* Fun message moved to right panel */}
                       </motion.div>
                     );
                   })}
@@ -1118,6 +1281,21 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                 <div className="h-full rounded-full" style={{ width: `${job.progress}%`, background: `linear-gradient(90deg, ${GOLD}, ${GOLD_BRIGHT})` }} />
               </div>
             </div>
+
+            {/* Big fun message during processing */}
+            {isProcessing && funMsg && (
+              <FunMessageDisplay message={funMsg} compact={!!(job.guest?.name || job.heroImageUrl)} />
+            )}
+
+            {/* Photo Approval Panel */}
+            <AnimatePresence>
+              {job.pendingPhotoApproval && (
+                <PhotoApprovalPanel
+                  approval={job.pendingPhotoApproval}
+                  backendUrl={process.env.NEXT_PUBLIC_BACKEND_URL!}
+                />
+              )}
+            </AnimatePresence>
 
             {/* Guest / Host Research Cards */}
             {(job.guest?.name || job.host?.name) && (
