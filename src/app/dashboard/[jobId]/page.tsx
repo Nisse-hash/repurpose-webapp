@@ -201,6 +201,7 @@ interface JobStatus {
     missedQuestions?: string[];
     nextEpisodeIdeas?: string[];
   } | null;
+  hashtags?: Record<string, string> | null;
   pendingPhotoApproval?: {
     approvalId: string;
     personName: string;
@@ -574,12 +575,13 @@ function PersonCard({ person, role, jobId, onUpdate }: { person: PersonInfo; rol
 // ── PostCard with attached media ──────────────────────────────────────
 
 function PostCard({
-  platform, text, heroImageUrl, gammaExportUrl, promoVerticalUrl, promoHorizontalUrl, index, jobId, onPostUpdate,
+  platform, text, hashtags, heroImageUrl, gammaExportUrl, promoVerticalUrl, promoHorizontalUrl, index, jobId, onPostUpdate,
 }: {
-  platform: string; text: string; index: number; jobId?: string; onPostUpdate?: (newText: string) => void;
+  platform: string; text: string; hashtags?: string; index: number; jobId?: string; onPostUpdate?: (newText: string) => void;
   heroImageUrl?: string; gammaExportUrl?: string; promoVerticalUrl?: string; promoHorizontalUrl?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const [hashtagsCopied, setHashtagsCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
@@ -588,9 +590,18 @@ function PostCard({
   const Icon = meta.icon;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(text).then(() => {
+    const full = hashtags ? `${text}\n\n${hashtags}` : text;
+    navigator.clipboard.writeText(full).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  const handleCopyHashtags = () => {
+    if (!hashtags) return;
+    navigator.clipboard.writeText(hashtags).then(() => {
+      setHashtagsCopied(true);
+      setTimeout(() => setHashtagsCopied(false), 1500);
     });
   };
 
@@ -724,6 +735,23 @@ function PostCard({
               </div>
             )}
           </>
+        )}
+        {/* Hashtags section */}
+        {hashtags && (
+          <div className="mt-2 pt-2 flex items-start gap-2" style={{ borderTop: `1px solid ${BORDER}` }}>
+            <p className="flex-1 text-[10px] leading-relaxed flex flex-wrap gap-x-1" style={{ color: `${GOLD}70` }}>
+              {hashtags.split(/\s+/).map((tag, i) => (
+                <span key={i}>{tag}</span>
+              ))}
+            </p>
+            <button
+              onClick={handleCopyHashtags}
+              className="flex-shrink-0 px-1.5 py-0.5 rounded text-[9px] transition-colors"
+              style={{ background: hashtagsCopied ? "#1DB95410" : `${GOLD}08`, color: hashtagsCopied ? "#1DB954" : `${GOLD}60` }}
+            >
+              {hashtagsCopied ? "Copied!" : "#"}
+            </button>
+          </div>
         )}
       </div>
     </motion.div>
@@ -1430,6 +1458,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
                         key={key}
                         platform={key}
                         text={text}
+                        hashtags={job.hashtags?.[key] || undefined}
                         index={i}
                         jobId={jobId}
                         onPostUpdate={(newText) => setJob(prev => prev?.posts ? { ...prev, posts: { ...prev.posts, [key]: newText } } : prev)}
