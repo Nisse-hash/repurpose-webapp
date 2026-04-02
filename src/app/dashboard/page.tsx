@@ -513,7 +513,9 @@ export default function DashboardPage() {
                           <div>
                             <label className="text-[9px] uppercase tracking-widest text-white/25 font-medium mb-2 block">Speakers (optional)</label>
                             <div className="space-y-2">
-                              {speakers.map((speaker, idx) => (
+                              {speakers.map((speaker, idx) => {
+                                const initials = speaker.name ? speaker.name.split(" ").map(w => w[0]).filter(Boolean).join("").toUpperCase().slice(0, 2) : "";
+                                return (
                                 <div key={idx} className="flex items-center gap-2">
                                   {speaker.photoPreview ? (
                                     <div className="relative group flex-shrink-0">
@@ -521,16 +523,35 @@ export default function DashboardPage() {
                                       <button onClick={() => { const u = [...speakers]; u[idx] = { ...u[idx], photoFile: undefined, photoPreview: undefined }; setSpeakers(u); }}
                                         className="absolute -top-1 -right-1 p-0.5 rounded-full bg-red-500/30 border border-red-500/40 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><X size={7} /></button>
                                     </div>
+                                  ) : speaker.noPhoto ? (
+                                    <div className="relative group flex-shrink-0">
+                                      <div className="w-9 h-9 rounded-full flex items-center justify-center border border-white/10" style={{ background: "#C9A84C20" }}>
+                                        <span className="text-[11px] font-bold" style={{ color: "#C9A84C" }}>{initials || "?"}</span>
+                                      </div>
+                                      <button onClick={() => { const u = [...speakers]; u[idx] = { ...u[idx], noPhoto: false }; setSpeakers(u); }}
+                                        className="absolute -top-1 -right-1 p-0.5 rounded-full bg-red-500/30 border border-red-500/40 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><X size={7} /></button>
+                                    </div>
                                   ) : (
-                                    <button onClick={() => { const input = document.createElement("input"); input.type = "file"; input.accept = "image/*"; input.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) { const u = [...speakers]; u[idx] = { ...u[idx], photoFile: f, photoPreview: URL.createObjectURL(f) }; setSpeakers(u); } }; input.click(); }}
-                                      className="w-9 h-9 rounded-full border border-dashed border-white/10 flex items-center justify-center hover:border-white/20 transition-colors flex-shrink-0"><Image size={12} className="text-white/15" /></button>
+                                    <div className="relative flex-shrink-0 flex gap-0.5">
+                                      <button onClick={() => { const input = document.createElement("input"); input.type = "file"; input.accept = "image/*"; input.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) { const u = [...speakers]; u[idx] = { ...u[idx], photoFile: f, photoPreview: URL.createObjectURL(f), noPhoto: false }; setSpeakers(u); } }; input.click(); }}
+                                        className="w-9 h-9 rounded-full border border-dashed border-white/10 flex items-center justify-center hover:border-white/20 transition-colors"
+                                        title="Upload photo">
+                                        <Image size={12} className="text-white/15" />
+                                      </button>
+                                      <button onClick={() => { const u = [...speakers]; u[idx] = { ...u[idx], noPhoto: true, photoFile: undefined, photoPreview: undefined }; setSpeakers(u); }}
+                                        className="w-5 h-5 rounded-full border border-red-500/20 flex items-center justify-center hover:bg-red-500/10 transition-colors self-center"
+                                        title="No photo (use initials)">
+                                        <X size={8} className="text-red-400/50" />
+                                      </button>
+                                    </div>
                                   )}
                                   <input type="text" placeholder={`${speaker.role} name`} value={speaker.name}
                                     onChange={(e) => { const u = [...speakers]; u[idx] = { ...u[idx], name: e.target.value }; setSpeakers(u); }}
                                     className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-white/10" />
                                   {speakers.length > 2 && <button onClick={() => setSpeakers(speakers.filter((_, i) => i !== idx))} className="p-1 text-white/15 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>}
                                 </div>
-                              ))}
+                                );
+                              })}
                               <button onClick={() => setSpeakers([...speakers, { name: "", role: "guest" }])}
                                 className="flex items-center gap-1.5 text-[10px] text-white/25 hover:text-white/40 transition-colors mt-1"><Plus size={10} /> Add speaker</button>
                             </div>
