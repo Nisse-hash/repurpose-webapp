@@ -388,7 +388,7 @@ function PhotoApprovalPanel({ approval, backendUrl }: {
             className="px-4 py-2.5 rounded-lg text-sm font-medium text-white/40 hover:text-white/60 transition-colors"
             style={{ background: "rgba(255,255,255,0.03)", border: `1px solid rgba(255,255,255,0.06)` }}
           >
-            Reject all
+            No photo (use initials)
           </motion.button>
         </div>
       </div>
@@ -484,8 +484,10 @@ function PersonCard({ person, role, jobId, onUpdate }: { person: PersonInfo; rol
       {person.photoUrl ? (
         <img src={person.photoUrl} alt={person.name} className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-white/10" />
       ) : (
-        <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-white/5 border border-white/10">
-          <User2 size={16} className="text-white/20" />
+        <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border border-white/10" style={{ background: `${GOLD}15` }}>
+          <span className="text-sm font-bold" style={{ color: GOLD }}>
+            {person.name.split(" ").map(w => w[0]).filter(Boolean).join("").toUpperCase().slice(0, 2)}
+          </span>
         </div>
       )}
       <div className="flex-1 min-w-0">
