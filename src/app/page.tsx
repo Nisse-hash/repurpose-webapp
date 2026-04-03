@@ -1,7 +1,6 @@
 "use client";
 
 import { Zap } from "lucide-react";
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import ScrollMorphHero from "@/components/landing/scroll-morph-hero";
 
 const GOLD = "#C9A84C";
@@ -30,32 +29,16 @@ export default function LandingPage() {
         </a>
 
         <div className="flex items-center gap-4">
-          <Show when="signed-out">
-            <SignInButton mode="modal">
-              <button className="text-sm text-white/50 hover:text-white transition-colors">
-                Sign in
-              </button>
-            </SignInButton>
-            <a
-              href="/dashboard"
-              className="text-sm font-semibold px-5 py-2 rounded-full transition-all hover:scale-105"
-              style={{
-                background: `linear-gradient(135deg, ${GOLD}, #F0B429)`,
-                color: "#0a0a0f",
-              }}
-            >
-              Get started
-            </a>
-          </Show>
-          <Show when="signed-in">
-            <a
-              href="/dashboard"
-              className="text-sm font-semibold text-white/60 hover:text-white transition-colors mr-2"
-            >
-              Dashboard
-            </a>
-            <UserButton />
-          </Show>
+          <a
+            href="/dashboard"
+            className="text-sm font-semibold px-5 py-2 rounded-full transition-all hover:scale-105"
+            style={{
+              background: `linear-gradient(135deg, ${GOLD}, #F0B429)`,
+              color: "#0a0a0f",
+            }}
+          >
+            Get started
+          </a>
         </div>
       </nav>
 

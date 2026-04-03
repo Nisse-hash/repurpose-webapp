@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserButton } from "@clerk/nextjs";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Zap, BarChart3, ChevronDown, Plus, Save,
@@ -131,7 +130,6 @@ export default function AdminPage() {
           <button onClick={fetchData} className="p-2 rounded-lg hover:bg-white/5 transition-colors">
             <RefreshCw size={14} className={`text-white/30 ${loading ? "animate-spin" : ""}`} />
           </button>
-          <UserButton />
         </div>
       </div>
 

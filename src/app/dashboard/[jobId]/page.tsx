@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect, use, useRef } from "react";
-import { UserButton } from "@clerk/nextjs";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap, Check, Loader2, AlertCircle, ArrowLeft, Copy, ChevronDown,
-  Minus, Download, FileText, Headphones, Sparkles, Play, Video,
+  Minus, Download, FileText, Headphones, Sparkles, Play, Video, Film,
   Clock, Image, Send, CheckCheck, ExternalLink, User2, Briefcase, RefreshCw, X, Maximize2,
   Upload, Camera, XCircle,
 } from "lucide-react";
@@ -183,6 +182,9 @@ interface JobStatus {
   promoVerticalUrl?: string;
   promoHorizontalUrl?: string;
   sceneImageUrls?: string[];
+  movieSceneData?: { movieTitle: string; year: string; imageUrl: string; thumbnailUrl: string; matchReason: string }[];
+  movieSceneUrls?: string[];
+  movieGammaUrl?: string;
   animatedSceneUrls?: string[];
   shortsUrls?: string[];
   fullVideoUrl?: string;
@@ -1028,6 +1030,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
   const [job, setJob] = useState<JobStatus | null>(null);
   const [srtOpen, setSrtOpen] = useState(false);
   const [sceneOpen, setSceneOpen] = useState(false);
+  const [movieSceneOpen, setMovieSceneOpen] = useState(true);
   const [allCopied, setAllCopied] = useState(false);
   const startTimeRef = useRef<string>("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1129,7 +1132,6 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/settings" className="text-[11px] text-white/30 hover:text-white/60 transition-colors">Settings</Link>
-          <UserButton />
         </div>
       </header>
 
@@ -1473,7 +1475,57 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
               </div>
             )}
 
-            {/* Scene Images Gallery */}
+            {/* Movie Scene Stills Gallery */}
+            {job.movieSceneData && job.movieSceneData.length > 0 && (
+              <div>
+                <button onClick={() => setMovieSceneOpen(!movieSceneOpen)} className="flex items-center gap-2 mb-3 group">
+                  <Film size={12} color={GOLD} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: GOLD }}>
+                    Movie Scene References
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: `${GOLD}12`, color: GOLD }}>
+                    {job.movieSceneData.length}
+                  </span>
+                  <ChevronDown size={10} className={`text-white/20 transition-transform ${movieSceneOpen ? "rotate-180" : ""}`} />
+                </button>
+                <AnimatePresence>
+                  {movieSceneOpen && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {job.movieSceneData.map((scene, i) => (
+                          <div key={i} className="rounded-lg overflow-hidden border group relative" style={{ borderColor: BORDER }}>
+                            <img src={scene.thumbnailUrl} alt={scene.movieTitle} className="w-full aspect-video object-cover" />
+                            <div className="px-3 py-2" style={{ background: "#0d0d14" }}>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-medium text-white/80">{scene.movieTitle} <span className="text-white/30">({scene.year})</span></span>
+                                <a href={scene.imageUrl} download className="text-[9px] font-medium opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: GOLD }}>
+                                  <Download size={8} className="inline mr-1" />HD
+                                </a>
+                              </div>
+                              <p className="text-[9px] text-white/30 mt-0.5 line-clamp-1">{scene.matchReason}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {job.movieGammaUrl && (
+                        <a
+                          href={job.movieGammaUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-medium transition-colors hover:border-[#C9A84C]/40"
+                          style={{ borderColor: BORDER, color: GOLD }}
+                        >
+                          <ExternalLink size={10} />
+                          Open Movie Mood Board in Gamma
+                        </a>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* AI Scene Images Gallery */}
             {job.sceneImageUrls && job.sceneImageUrls.length > 0 && (
               <div>
                 <button onClick={() => setSceneOpen(!sceneOpen)} className="flex items-center gap-2 mb-3 group">

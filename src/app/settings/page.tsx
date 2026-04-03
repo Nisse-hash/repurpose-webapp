@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { UserButton, useUser } from "@clerk/nextjs";
 import { Upload, Palette, Check, Loader2, ArrowLeft, X, Plus, Trash2, Image } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -18,7 +17,7 @@ interface BrandingData {
 }
 
 export default function SettingsPage() {
-  const { user } = useUser();
+  const user = { id: "default" };
   const [branding, setBranding] = useState<BrandingData>({ colors: [], logoUrl: "", brandName: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -99,7 +98,6 @@ export default function SettingsPage() {
           </Link>
           <h1 className="text-sm font-semibold tracking-wide">Settings</h1>
         </div>
-        <UserButton />
       </header>
 
       <div className="max-w-2xl mx-auto px-8 py-12">

@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { UserButton, useUser } from "@clerk/nextjs";
 import {
   Upload, Link, FileText, Zap, Music, Video, Globe, FileImage,
   Clock, ArrowRight, Check, Loader2, AlertCircle, X, Palette,
   ChevronDown, Image, Sparkles, Trash2, Plus, Headphones, ArrowLeft,
-  Pen,
+  Pen, RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ParticleButton } from "@/components/ui/particle-button";
@@ -73,7 +72,7 @@ const CONTENT_TYPES = [
 ];
 
 export default function DashboardPage() {
-  const { user } = useUser();
+  const user = { id: "default" };
   const [contentType, setContentType] = useState<ContentType>(null);
   const [mode, setMode] = useState<InputMode>("url");
   const [urlInput, setUrlInput] = useState("");
@@ -98,6 +97,44 @@ export default function DashboardPage() {
   const brandInputRef = useRef<HTMLInputElement>(null);
 
   const showToast = (msg: string, type: "error" | "success" = "error") => setToast({ msg, type });
+
+  // Re-run last job: restore all state from localStorage and auto-submit
+  const lastRunConfig = typeof window !== "undefined" ? (() => { try { return JSON.parse(localStorage.getItem("lastRunConfig") || "null"); } catch { return null; } })() : null;
+
+  const handleRerun = async () => {
+    if (!lastRunConfig) return;
+    const cfg = lastRunConfig;
+    setSubmitting(true);
+    try {
+      const speakerData = cfg.speakers?.filter((s: any) => s.name?.trim()).map((s: any) => ({
+        name: s.name.trim(),
+        role: s.role,
+        ...(s.noPhoto ? { noPhoto: true } : {}),
+      }));
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/job`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: cfg.contentType || "auto",
+          input: cfg.urlInput || cfg.fileName || cfg.textInput || "",
+          userId: user?.id || null,
+          ...(cfg.audioUrl ? { audioUrl: cfg.audioUrl } : {}),
+          context: {
+            podcastName: cfg.podcastName || undefined,
+            hostName: cfg.speakers?.find((s: any) => s.role === "host")?.name?.trim() || undefined,
+            guestName: cfg.speakers?.find((s: any) => s.role === "guest")?.name?.trim() || undefined,
+            speakers: speakerData?.length > 0 ? speakerData : undefined,
+            authorName: cfg.authorName || undefined,
+          },
+          config: { platforms: ["linkedin", "instagram", "x", "facebook", "tiktok", "youtube", "pinterest", "threads", "bluesky"] },
+        }),
+      });
+      const data = await res.json();
+      if (data.error) { showToast(data.error); return; }
+      if (data.jobId) window.location.href = `/dashboard/${data.jobId}`;
+    } catch { showToast("Failed to connect to backend"); } finally { setSubmitting(false); }
+  };
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/jobs${user?.id ? `?userId=${user.id}` : ""}`)
@@ -229,7 +266,23 @@ export default function DashboardPage() {
       });
       const data = await res.json();
       if (data.error) { showToast(data.error); return; }
-      if (data.jobId) window.location.href = `/dashboard/${data.jobId}`;
+      if (data.jobId) {
+        // Save last run config to localStorage for re-run
+        try {
+          localStorage.setItem("lastRunConfig", JSON.stringify({
+            contentType,
+            mode,
+            urlInput: mode === "url" ? urlInput : "",
+            textInput: mode === "text" ? textInput : "",
+            podcastName,
+            authorName,
+            speakers: speakers.map(s => ({ name: s.name, role: s.role, noPhoto: s.noPhoto })),
+            audioUrl,
+            fileName: file?.name || input,
+          }));
+        } catch {}
+        window.location.href = `/dashboard/${data.jobId}`;
+      }
     } catch { showToast("Failed to connect to backend"); } finally { setSubmitting(false); setUploadStatus(null); }
   };
 
@@ -289,7 +342,6 @@ export default function DashboardPage() {
         </a>
         <div className="flex items-center gap-5">
           <a href="/settings" className="text-[11px] text-white/25 hover:text-white/50 transition-colors flex items-center gap-1.5"><Palette size={11} /> Settings</a>
-          <UserButton />
         </div>
       </header>
 
@@ -328,6 +380,27 @@ export default function DashboardPage() {
                   </motion.button>
                 ))}
               </div>
+
+              {/* Re-run last */}
+              {lastRunConfig && (
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  onClick={handleRerun}
+                  disabled={submitting}
+                  className="mt-8 flex items-center gap-3 px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ background: "rgba(201, 168, 76, 0.08)", border: "1px solid rgba(201, 168, 76, 0.15)" }}
+                >
+                  <RefreshCw size={14} className={`text-[#C9A84C]/60 ${submitting ? "animate-spin" : ""}`} />
+                  <div className="text-left">
+                    <span className="text-xs font-semibold text-white/70">{submitting ? "Re-running..." : "Re-run last"}</span>
+                    <span className="text-[10px] text-white/25 ml-2">
+                      {lastRunConfig.speakers?.find((s: any) => s.role === "guest")?.name || lastRunConfig.urlInput?.substring(0, 40) || lastRunConfig.fileName || ""}
+                    </span>
+                  </div>
+                </motion.button>
+              )}
 
               {/* Recent Jobs */}
               {recentJobs.length > 0 && (
